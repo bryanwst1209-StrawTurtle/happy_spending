@@ -28,13 +28,17 @@ struct CategoryPicker: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if !frequent.isEmpty {
-                Text("常用").font(.caption).foregroundStyle(.secondary)
-                chipRow(frequent)
-            }
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(tops, id: \.id) { top in topCell(top) }
+        VStack(alignment: .leading, spacing: 10) {
+            // 常用和一级分类放在可滚动区;二级分类行固定在下方,选中后始终可见。
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    if !frequent.isEmpty {
+                        chipRow(frequent, symbol: "star.fill")
+                    }
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(tops, id: \.id) { top in topCell(top) }
+                    }
+                }
             }
             if !subs.isEmpty {
                 chipRow(subs)
@@ -46,12 +50,12 @@ struct CategoryPicker: View {
         let color = Color(hex: top.colorHex)
         let isSelected = selectedTop?.id == top.id
         return Button { selectedID = top.id } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: 5) {
                 ZStack {
                     Circle().fill(color.opacity(0.18))
-                    Image(systemName: top.symbolName).font(.title3).foregroundStyle(color)
+                    Image(systemName: top.symbolName).font(.body).foregroundStyle(color)
                 }
-                .frame(width: 52, height: 52)
+                .frame(width: 46, height: 46)
                 .overlay(Circle().stroke(color, lineWidth: isSelected ? 2.5 : 0))
                 Text(top.name).font(.caption).foregroundStyle(.primary)
             }
@@ -59,19 +63,23 @@ struct CategoryPicker: View {
         .buttonStyle(.plain)
     }
 
-    private func chipRow(_ items: [LedgerCategory]) -> some View {
+    private func chipRow(_ items: [LedgerCategory], symbol: String? = nil) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(items, id: \.id) { item in
                     let color = Color(hex: item.colorHex)
                     let isSelected = selectedID == item.id
                     Button { selectedID = item.id } label: {
-                        Text(item.displayName)
-                            .font(.subheadline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(Capsule().fill(color.opacity(isSelected ? 0.28 : 0.10)))
-                            .overlay(Capsule().stroke(color, lineWidth: isSelected ? 1.5 : 0))
+                        HStack(spacing: 4) {
+                            if let symbol {
+                                Image(systemName: symbol).font(.caption2).foregroundStyle(color)
+                            }
+                            Text(item.displayName).font(.subheadline)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Capsule().fill(color.opacity(isSelected ? 0.28 : 0.10)))
+                        .overlay(Capsule().stroke(color, lineWidth: isSelected ? 1.5 : 0))
                     }
                     .buttonStyle(.plain)
                 }

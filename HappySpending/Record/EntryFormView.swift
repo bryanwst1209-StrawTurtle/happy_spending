@@ -22,14 +22,13 @@ struct EntryFormView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .contentTransition(.numericText())
 
-            ScrollView {
-                CategoryPicker(
-                    kind: form.kind,
-                    categories: categories,
-                    frequentIDs: frequentIDs,
-                    selectedID: $form.categoryID
-                )
-            }
+            CategoryPicker(
+                kind: form.kind,
+                categories: categories,
+                frequentIDs: frequentIDs,
+                selectedID: $form.categoryID
+            )
+            .frame(maxHeight: .infinity)
 
             HStack(spacing: 8) {
                 DatePicker(

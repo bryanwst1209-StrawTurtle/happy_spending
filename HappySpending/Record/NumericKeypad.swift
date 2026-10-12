@@ -40,7 +40,7 @@ struct NumericKeypad: View {
                 .frame(width: 84)
             }
         }
-        .frame(height: 4 * 54 + 3 * 8)
+        .frame(height: 4 * 50 + 3 * 8)
     }
 
     @ViewBuilder
