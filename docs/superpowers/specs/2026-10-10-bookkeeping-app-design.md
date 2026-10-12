@@ -51,6 +51,8 @@
 
 ## 5. 数据模型
 
+> 实现命名:`Transaction` 在代码中叫 `LedgerEntry`,`Category` 叫 `LedgerCategory`,避免与 `SwiftUI.Transaction` 及 ObjC 运行时的 `Category` 重名。
+
 ### Transaction(一笔账)
 
 | 字段 | 说明 |
