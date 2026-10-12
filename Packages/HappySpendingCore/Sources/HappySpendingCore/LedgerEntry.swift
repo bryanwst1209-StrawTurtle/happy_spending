@@ -29,7 +29,7 @@ public final class LedgerEntry {
         self.id = id
         self.amountInCents = amountInCents
         self.kindRaw = kind.rawValue
-        self.date = calendar.startOfDay(for: date)
+        self.date = DayStamp.stamp(date, in: calendar)
         self.createdAt = createdAt
         self.note = note
         self.category = category

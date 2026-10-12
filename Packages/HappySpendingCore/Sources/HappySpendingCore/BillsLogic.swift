@@ -33,6 +33,16 @@ public enum BillsLogic {
         return formatter.string(from: day)
     }
 
+    /// "2026年10月"
+    public static func monthTitle(_ anchor: Date, calendar: Calendar) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "y年M月"
+        return formatter.string(from: anchor)
+    }
+
     /// 在备注、一级分类名、二级分类名里做不区分大小写的包含匹配。空查询返回全部。
     public static func search(_ rows: [EntryRow], query: String) -> [EntryRow] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)

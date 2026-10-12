@@ -4,7 +4,7 @@ public enum CSVExporter {
     public static let header = ["日期", "类型", "金额", "一级分类", "二级分类", "备注"]
 
     /// UTF-8 带 BOM,RFC 4180 转义,CRLF 换行;按日期从旧到新排列。
-    public static func csv(_ rows: [EntryRow], calendar: Calendar = .current) -> Data {
+    public static func csv(_ rows: [EntryRow], calendar: Calendar = DayStamp.calendar) -> Data {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = calendar
@@ -29,7 +29,7 @@ public enum CSVExporter {
     }
 
     /// `nil` 表示导出全部。
-    public static func fileName(for period: Period?, calendar: Calendar = .current) -> String {
+    public static func fileName(for period: Period?, calendar: Calendar = DayStamp.calendar) -> String {
         switch period {
         case nil:
             return "happy_spending-all.csv"
