@@ -28,13 +28,13 @@ struct BillsView: View {
     @Query(sort: \LedgerEntry.date, order: .reverse) private var entries: [LedgerEntry]
     @Query(sort: \LedgerCategory.sortOrder) private var categories: [LedgerCategory]
 
-    @State private var month = Date.now
+    @State private var month = DayStamp.stamp(.now)
     @State private var query = ""
     @State private var editing: LedgerEntry?
     @State private var undo: DeletedEntry?
     @State private var errorMessage: String?
 
-    private let calendar = Calendar.current
+    private let calendar = DayStamp.calendar
 
     private var allRows: [EntryRow] { entries.map(\.row) }
     private var monthRows: [EntryRow] { Period.month(month).filter(allRows, calendar: calendar) }
@@ -43,16 +43,10 @@ struct BillsView: View {
     }
     private var summary: PeriodSummary { Statistics.summary(monthRows) }
     private var entriesByID: [UUID: LedgerEntry] {
-        Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0) })
+        Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
     private var monthTitle: String {
-        month.formatted(.dateTime.year().month().locale(Locale(identifier: "zh_CN")))
-    }
-    private var frequentIDs: [UUID] {
-        BillsLogic.frequentCategoryIDs(
-            allRows, kind: editing?.kind ?? .expense,
-            excluding: Set(categories.filter(\.isArchived).map(\.id))
-        )
+        BillsLogic.monthTitle(month, calendar: calendar)
     }
 
     var body: some View {
@@ -121,7 +115,7 @@ struct BillsView: View {
                 }
             }
             .sheet(item: $editing) { entry in
-                EntryEditSheet(entry: entry, categories: categories, frequentIDs: frequentIDs)
+                EntryEditSheet(entry: entry, categories: categories, rows: allRows)
             }
             .overlay(alignment: .bottom) {
                 if let undo {
@@ -180,6 +174,8 @@ struct BillsView: View {
     }
 
     private func restore(_ snapshot: DeletedEntry) {
+        // 连点两次"撤销"不能造出两笔同 id 的账单。
+        guard undo == snapshot, !entries.contains(where: { $0.id == snapshot.id }) else { return }
         let entry = LedgerEntry(
             id: snapshot.id,
             amountInCents: snapshot.amountInCents,
@@ -187,7 +183,8 @@ struct BillsView: View {
             date: snapshot.date,
             note: snapshot.note,
             category: categories.first { $0.id == snapshot.categoryID },
-            createdAt: snapshot.createdAt
+            createdAt: snapshot.createdAt,
+            calendar: DayStamp.calendar
         )
         context.insert(entry)
         _ = persist()

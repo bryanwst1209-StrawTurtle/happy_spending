@@ -22,7 +22,9 @@ struct CategoryPicker: View {
             .sorted { $0.sortOrder < $1.sortOrder }
     }
     private var frequent: [LedgerCategory] {
-        frequentIDs.compactMap { id in categories.first { $0.id == id } }
+        frequentIDs
+            .compactMap { id in categories.first { $0.id == id } }
+            .filter { $0.kind == kind }
     }
 
     var body: some View {

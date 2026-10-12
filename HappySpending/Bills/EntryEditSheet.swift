@@ -8,15 +8,15 @@ struct EntryEditSheet: View {
 
     let entry: LedgerEntry
     let categories: [LedgerCategory]
-    let frequentIDs: [UUID]
+    let rows: [EntryRow]
 
     @State private var form: EntryFormState
     @State private var errorMessage: String?
 
-    init(entry: LedgerEntry, categories: [LedgerCategory], frequentIDs: [UUID]) {
+    init(entry: LedgerEntry, categories: [LedgerCategory], rows: [EntryRow]) {
         self.entry = entry
         self.categories = categories
-        self.frequentIDs = frequentIDs
+        self.rows = rows
         _form = State(initialValue: EntryFormState(entry: entry))
     }
 
@@ -30,6 +30,12 @@ struct EntryEditSheet: View {
                 onSave: apply
             )
             .padding(.horizontal)
+            .onChange(of: form.kind) {
+                form.categoryID = CategoryRules.resolveSelection(
+                    current: form.categoryID, kind: form.kind,
+                    categories: categories, lastUsed: nil
+                )
+            }
             .navigationTitle("编辑账单")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -48,11 +54,18 @@ struct EntryEditSheet: View {
         }
     }
 
+    private var frequentIDs: [UUID] {
+        BillsLogic.frequentCategoryIDs(
+            rows, kind: form.kind,
+            excluding: Set(categories.filter(\.isArchived).map(\.id))
+        )
+    }
+
     private func apply() {
         guard form.amount.isValid else { return }
         entry.amountInCents = form.amount.cents
         entry.kind = form.kind
-        entry.date = Calendar.current.startOfDay(for: form.date)
+        entry.date = DayStamp.stamp(form.date)
         entry.note = form.note.trimmingCharacters(in: .whitespacesAndNewlines)
         entry.category = categories.first { $0.id == form.categoryID }
         do {

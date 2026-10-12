@@ -7,6 +7,8 @@ struct RecordView: View {
     @Query(sort: \LedgerCategory.sortOrder) private var categories: [LedgerCategory]
     @Query(sort: \LedgerEntry.createdAt, order: .reverse) private var entries: [LedgerEntry]
 
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var form = EntryFormState()
     @State private var savedCount = 0
     @State private var showToast = false
@@ -43,6 +45,9 @@ struct RecordView: View {
         .onAppear(perform: ensureCategory)
         .onChange(of: form.kind) { ensureCategory() }
         .onChange(of: categories.count) { ensureCategory() }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active { form.refreshDefaultDate() }
+        }
         .alert("保存失败", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -55,12 +60,13 @@ struct RecordView: View {
 
     /// 确保选中的分类属于当前类型且未归档;否则回到上次用过的分类,再不行就取第一个一级分类。
     private func ensureCategory() {
-        let active = categories.filter { !$0.isArchived && $0.kind == form.kind }
-        if let id = form.categoryID, active.contains(where: { $0.id == id }) { return }
         let lastUsed = entries.first {
             $0.kind == form.kind && $0.category.map { !$0.isArchived } == true
         }?.category
-        form.categoryID = (lastUsed ?? active.first { $0.parent == nil })?.id
+        form.categoryID = CategoryRules.resolveSelection(
+            current: form.categoryID, kind: form.kind,
+            categories: categories, lastUsed: lastUsed
+        )
     }
 
     private func save() {

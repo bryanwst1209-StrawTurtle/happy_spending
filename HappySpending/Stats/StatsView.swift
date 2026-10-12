@@ -5,16 +5,16 @@ import HappySpendingCore
 struct StatsView: View {
     @Query(sort: \LedgerEntry.date) private var entries: [LedgerEntry]
     @State private var scope: StatsScope = .month
-    @State private var anchor = Date.now
+    @State private var anchor = DayStamp.stamp(.now)
 
-    private let calendar = Calendar.current
+    private let calendar = DayStamp.calendar
 
     private var year: Int { calendar.component(.year, from: anchor) }
     private var period: Period { scope == .month ? .month(anchor) : .year(year) }
     private var rows: [EntryRow] { period.filter(entries.map(\.row), calendar: calendar) }
     private var title: String {
         scope == .month
-            ? anchor.formatted(.dateTime.year().month().locale(Locale(identifier: "zh_CN")))
+            ? BillsLogic.monthTitle(anchor, calendar: calendar)
             : "\(year)年"
     }
     private var trend: [TrendPoint] {

@@ -32,10 +32,20 @@ struct EntryFormView: View {
             }
 
             HStack(spacing: 8) {
-                DatePicker("日期", selection: $form.date, displayedComponents: .date)
-                    .labelsHidden()
-                Button("今天") { form.date = .now }
-                Button("昨天") { form.date = Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now }
+                DatePicker(
+                    "日期",
+                    selection: Binding(
+                        get: { form.date },
+                        set: { form.date = $0; form.isDateChosen = true }
+                    ),
+                    displayedComponents: .date
+                )
+                .labelsHidden()
+                Button("今天") { form.date = .now; form.isDateChosen = false }
+                Button("昨天") {
+                    form.date = Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now
+                    form.isDateChosen = true
+                }
                 Spacer()
             }
             .buttonStyle(.glass)
