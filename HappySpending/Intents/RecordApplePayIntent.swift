@@ -21,8 +21,9 @@ struct RecordApplePayIntent: AppIntent {
         Summary("记一笔 \(\.$merchant) \(\.$amount)")
     }
 
+    // 可选:交易没有商户名时,快捷指令不会因为缺必填参数而卡住自动化。
     @Parameter(title: "商户")
-    var merchant: String
+    var merchant: String?
 
     @Parameter(title: "金额")
     var amount: String
@@ -31,7 +32,7 @@ struct RecordApplePayIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         do {
             let result = try AutoEntryRecorder.record(
-                merchant: merchant,
+                merchant: merchant ?? "",
                 amountText: amount,
                 in: SharedModelContainer.shared.mainContext
             )

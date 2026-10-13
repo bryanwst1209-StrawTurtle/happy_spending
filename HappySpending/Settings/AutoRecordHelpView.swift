@@ -4,7 +4,7 @@ struct AutoRecordHelpView: View {
     var body: some View {
         List {
             Section {
-                Text("用 Apple Pay(含加入 Apple Pay 的银行卡)付款后,app 会自动记一笔支出,账单里带“自动”标记。")
+                Text("在 iPhone 上用钱包里的卡刷卡付款后,app 会自动记一笔支出,账单里带“自动”标记。线上或 app 内的 Apple Pay、Apple Watch 付款是否会触发,取决于系统的“钱包 → 交易”触发器,需要你实际试一次。")
             } header: {
                 Text("它做什么")
             }
@@ -15,7 +15,7 @@ struct AutoRecordHelpView: View {
                 step(3, "选择要监控的卡,点“下一步”。")
                 step(4, "添加操作,搜索“记一笔”,选择“记一笔(Apple Pay)”。")
                 step(5, "把“商户”和“金额”两个参数分别设成触发器给出的“商户”和“金额”(点参数框,在变量里选)。")
-                step(6, "在最后一页把“运行前先询问”关掉,点“完成”。")
+                step(6, "运行方式选“立即运行”(不要选“确认后运行”)。不同系统版本这个选项的位置不同:可能在选好触发器之后,也可能在最后一页,以“运行前先询问”开关的形式出现,把它关掉。最后点“完成”。")
             }
 
             Section {
@@ -29,7 +29,7 @@ struct AutoRecordHelpView: View {
             }
 
             Section("能覆盖什么") {
-                Label("Apple Pay 和加入 Apple Pay 的银行卡", systemImage: "checkmark.circle.fill")
+                Label("在 iPhone 上刷钱包里的卡(含加入钱包的银行卡)", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                 Label("微信支付、支付宝、直接刷实体卡:iOS 不允许 app 读取这些支付,无法自动记", systemImage: "xmark.circle.fill")
                     .foregroundStyle(.secondary)

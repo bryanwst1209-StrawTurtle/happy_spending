@@ -248,4 +248,50 @@ struct MerchantMemoryTests {
         #expect(!learned)
         #expect(try memories(context).isEmpty)
     }
+
+    // MARK: 只学支出
+
+    private func incomeCategory(_ context: ModelContext) -> LedgerCategory {
+        CategoryRules.addTopLevel(
+            name: "工资", symbolName: "banknote.fill", colorHex: "#30D158",
+            kind: .income, sortOrder: 0, in: context
+        )
+    }
+
+    @Test func switchingAnAutoEntryToIncomeDoesNotLearn() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let (food, _, _) = try makeFood(context)
+        let salary = incomeCategory(context)
+        let entry = autoEntry(context, merchant: "美团", category: food)
+
+        entry.kind = .income
+        entry.category = salary
+        let learned = try MerchantMemory.learnFromEdit(entry: entry, previousCategoryID: food.id, in: context)
+
+        #expect(!learned)
+        #expect(try memories(context).isEmpty)
+    }
+
+    @Test func anExpenseEntryOnAnIncomeCategoryDoesNotLearn() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let salary = incomeCategory(context)
+        let entry = autoEntry(context, merchant: "美团", category: nil)
+
+        entry.category = salary
+        let learned = try MerchantMemory.learnFromEdit(entry: entry, previousCategoryID: nil, in: context)
+
+        #expect(!learned)
+        #expect(try memories(context).isEmpty)
+    }
+
+    @Test func lookupIgnoresAMemoryThatPointsAtAnIncomeCategory() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let salary = incomeCategory(context)
+        let memory = [MerchantCategory(merchantKey: "美团", categoryID: salary.id)]
+
+        #expect(MerchantMemory.categoryID(for: "美团", memory: memory, categories: [salary]) == nil)
+    }
 }

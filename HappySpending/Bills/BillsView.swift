@@ -2,27 +2,6 @@ import SwiftUI
 import SwiftData
 import HappySpendingCore
 
-/// 删除前的快照,用于"撤销"。
-private struct DeletedEntry: Equatable {
-    let id: UUID
-    let amountInCents: Int
-    let kind: EntryKind
-    let date: Date
-    let createdAt: Date
-    let note: String
-    let categoryID: UUID?
-
-    init(_ entry: LedgerEntry) {
-        id = entry.id
-        amountInCents = entry.amountInCents
-        kind = entry.kind
-        date = entry.date
-        createdAt = entry.createdAt
-        note = entry.note
-        categoryID = entry.category?.id
-    }
-}
-
 struct BillsView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \LedgerEntry.date, order: .reverse) private var entries: [LedgerEntry]
@@ -31,7 +10,7 @@ struct BillsView: View {
     @State private var month = DayStamp.stamp(.now)
     @State private var query = ""
     @State private var editing: LedgerEntry?
-    @State private var undo: DeletedEntry?
+    @State private var undo: DeletedEntrySnapshot?
     @State private var errorMessage: String?
 
     private let calendar = DayStamp.calendar
@@ -163,7 +142,7 @@ struct BillsView: View {
     }
 
     private func delete(_ entry: LedgerEntry) {
-        let snapshot = DeletedEntry(entry)
+        let snapshot = DeletedEntrySnapshot(entry)
         context.delete(entry)
         guard persist() else { return }
         withAnimation { undo = snapshot }
@@ -173,19 +152,10 @@ struct BillsView: View {
         }
     }
 
-    private func restore(_ snapshot: DeletedEntry) {
+    private func restore(_ snapshot: DeletedEntrySnapshot) {
         // 连点两次"撤销"不能造出两笔同 id 的账单。
         guard undo == snapshot, !entries.contains(where: { $0.id == snapshot.id }) else { return }
-        let entry = LedgerEntry(
-            id: snapshot.id,
-            amountInCents: snapshot.amountInCents,
-            kind: snapshot.kind,
-            date: snapshot.date,
-            note: snapshot.note,
-            category: categories.first { $0.id == snapshot.categoryID },
-            createdAt: snapshot.createdAt,
-            calendar: DayStamp.calendar
-        )
+        let entry = snapshot.makeEntry(categories: categories)
         context.insert(entry)
         _ = persist()
         withAnimation { undo = nil }

@@ -42,6 +42,16 @@ struct AmountTextTests {
         #expect(throws: AmountError.invalidAmount) { try AmountText.cents(from: text) }
     }
 
+    @Test(arguments: ["25,00", "12,50", "12,5", "1,23", "1,2345", "1,234,56", ",25", "25,", "1,,234", "1,234,5.00"])
+    func aCommaThatIsNotAThousandsSeparatorIsNotSilentlyDropped(text: String) {
+        #expect(throws: AmountError.invalidAmount) { try AmountText.cents(from: text) }
+    }
+
+    @Test(arguments: [("1,234", 123400), ("12,345.67", 1234567), ("1,234,567.89", 123456789), ("999,999", 99999900), ("+1,000", 100000)])
+    func commasThatFormThousandsGroupsStillWork(text: String, cents: Int) throws {
+        #expect(try AmountText.cents(from: text) == cents)
+    }
+
     @Test(arguments: ["0", "0.00", "-5", "-0.5", "0.004", "0.001", "-0"])
     func rejectsZeroAndNegativeAmounts(text: String) {
         #expect(throws: AmountError.notAnExpense) { try AmountText.cents(from: text) }

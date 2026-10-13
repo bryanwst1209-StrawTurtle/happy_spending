@@ -27,7 +27,16 @@ public enum AmountText {
         for token in ["¥", "\u{FFE5}", "元", "cny", "rmb"] {
             s = s.replacingOccurrences(of: token, with: "", options: .caseInsensitive)
         }
-        s = String(s.filter { !$0.isWhitespace && $0 != "," })
+        s = String(s.filter { !$0.isWhitespace })
+
+        // 逗号只有在构成合法的千分位分组时才去掉(`1,234.56`)。否则它可能是某些地区的小数逗号
+        // (`25,00` 是 25 元),直接丢掉会把金额放大 100 倍且没有任何提示,宁可拒绝。
+        if s.contains(",") {
+            guard s.range(of: #"^[+-]?\d{1,3}(,\d{3})+(\.\d*)?$"#, options: .regularExpression) != nil else {
+                throw AmountError.invalidAmount
+            }
+            s = s.replacingOccurrences(of: ",", with: "")
+        }
 
         guard s.range(of: #"^[+-]?(\d+(\.\d*)?|\.\d+)$"#, options: .regularExpression) != nil else {
             throw AmountError.invalidAmount

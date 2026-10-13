@@ -27,6 +27,7 @@ public enum MerchantMemory {
         guard !key.isEmpty,
               let remembered = memory.first(where: { $0.merchantKey == key }),
               let category = categories.first(where: { $0.id == remembered.categoryID }),
+              category.kind == .expense,
               !category.isArchived,
               category.parent?.isArchived != true
         else { return nil }
@@ -65,11 +66,16 @@ public enum MerchantMemory {
         in context: ModelContext,
         now: Date = .now
     ) throws -> Bool {
+        // 自动账只记支出,所以只学习"支出账 → 支出分类"。把自动账改成收入类型时不学,
+        // 否则这个商户以后的支出都会落进收入分类。
         guard entry.isAuto,
+              entry.kind == .expense,
               let merchant = entry.merchant.flatMap(MerchantKey.trimmed),
-              let newCategoryID = entry.category?.id,
-              newCategoryID != previousCategoryID
+              let category = entry.category,
+              category.kind == .expense,
+              category.id != previousCategoryID
         else { return false }
+        let newCategoryID = category.id
         try learn(merchant: merchant, categoryID: newCategoryID, in: context, now: now)
         return true
     }
