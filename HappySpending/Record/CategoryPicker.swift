@@ -51,11 +51,10 @@ struct CategoryPicker: View {
         let isSelected = selectedTop?.id == top.id
         return Button { selectedID = top.id } label: {
             VStack(spacing: 5) {
-                ZStack {
-                    Circle().fill(color.opacity(0.18))
-                    Image(systemName: top.symbolName).font(.body).foregroundStyle(color)
-                }
-                .frame(width: 46, height: 46)
+                CategoryIconView(
+                    symbolName: top.symbolName, colorHex: top.colorHex,
+                    iconData: top.iconData, size: 46
+                )
                 .overlay(Circle().stroke(color, lineWidth: isSelected ? 2.5 : 0))
                 Text(top.name).font(.caption).foregroundStyle(.primary)
             }
