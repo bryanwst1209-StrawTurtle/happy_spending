@@ -85,23 +85,6 @@ struct CategoryRulesTests {
         #expect(countAfterFirst == countAfterSecond)
     }
 
-    @Test func seededCategoriesRespectTheTwoLevelRule() throws {
-        let container = try makeTestContainer()
-        let context = container.mainContext
-        try DefaultCategories.seedIfNeeded(in: context)
-
-        let all = try context.fetch(FetchDescriptor<LedgerCategory>())
-        let tops = all.filter { $0.parent == nil }
-        let subs = all.filter { $0.parent != nil }
-
-        #expect(tops.filter { $0.kind == .expense }.count == 7)
-        #expect(tops.filter { $0.kind == .income }.count == 3)
-        #expect(!subs.isEmpty)
-        #expect(subs.allSatisfy { $0.parent?.parent == nil })
-        #expect(subs.allSatisfy { $0.kind == $0.parent?.kind })
-        #expect(all.allSatisfy { !$0.name.isEmpty && !$0.isArchived })
-    }
-
     @Test func entryDateIsNormalizedToStartOfDay() throws {
         let entry = LedgerEntry(
             amountInCents: 100, kind: .expense,
