@@ -86,4 +86,54 @@ struct RowIconTests {
         try context.save()
         #expect(fetched?.iconData == nil)
     }
+
+    @Test func subcategoryIconIsCarriedSeparatelyFromTheTopLevelIcon() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let (food, lunch) = try makeFood(context)
+        let subIcon = Data([0x89, 0x50, 0x4E, 0x47, 0x09, 0x09])
+        food.iconData = icon
+        lunch.iconData = subIcon
+        let entry = LedgerEntry(amountInCents: 100, kind: .expense, date: makeDate(2026, 10, 10), category: lunch)
+        context.insert(entry)
+
+        let row = entry.row
+        #expect(row.topIconData == icon)
+        #expect(row.subIconData == subIcon)
+        #expect(row.displayIconData == subIcon)
+    }
+
+    @Test func displayIconFallsBackToTheTopLevelIcon() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let (food, lunch) = try makeFood(context)
+        food.iconData = icon
+        let entry = LedgerEntry(amountInCents: 100, kind: .expense, date: makeDate(2026, 10, 10), category: lunch)
+        context.insert(entry)
+
+        #expect(entry.row.subIconData == nil)
+        #expect(entry.row.displayIconData == icon)
+    }
+
+    @Test func entryOnATopLevelCategoryHasNoSubIcon() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let (food, _) = try makeFood(context)
+        food.iconData = icon
+        let entry = LedgerEntry(amountInCents: 100, kind: .expense, date: makeDate(2026, 10, 10), category: food)
+        context.insert(entry)
+
+        #expect(entry.row.subIconData == nil)
+        #expect(entry.row.displayIconData == icon)
+    }
+
+    @Test func displayIconIsNilWithoutAnyCustomIcon() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let (_, lunch) = try makeFood(context)
+        let entry = LedgerEntry(amountInCents: 100, kind: .expense, date: makeDate(2026, 10, 10), category: lunch)
+        context.insert(entry)
+
+        #expect(entry.row.displayIconData == nil)
+    }
 }

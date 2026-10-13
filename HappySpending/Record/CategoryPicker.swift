@@ -72,6 +72,11 @@ struct CategoryPicker: View {
                         HStack(spacing: 4) {
                             if let symbol {
                                 Image(systemName: symbol).font(.caption2).foregroundStyle(color)
+                            } else if let iconData = item.iconData {
+                                CategoryIconView(
+                                    symbolName: item.symbolName, colorHex: item.colorHex,
+                                    iconData: iconData, size: 20
+                                )
                             }
                             Text(item.displayName).font(.subheadline)
                         }

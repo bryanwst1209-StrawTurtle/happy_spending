@@ -22,6 +22,8 @@ public struct EntryRow: Equatable, Identifiable, Sendable {
     public let topIconData: Data?
     public let subCategoryID: UUID?
     public let subCategoryName: String?
+    /// 二级分类自己的自定义图标(没有二级分类或没上传时为 nil)。
+    public let subIconData: Data?
 
     public init(
         id: UUID = UUID(),
@@ -36,7 +38,8 @@ public struct EntryRow: Equatable, Identifiable, Sendable {
         topSymbolName: String = Uncategorized.symbolName,
         topIconData: Data? = nil,
         subCategoryID: UUID? = nil,
-        subCategoryName: String? = nil
+        subCategoryName: String? = nil,
+        subIconData: Data? = nil
     ) {
         self.id = id
         self.date = date
@@ -51,12 +54,16 @@ public struct EntryRow: Equatable, Identifiable, Sendable {
         self.topIconData = topIconData
         self.subCategoryID = subCategoryID
         self.subCategoryName = subCategoryName
+        self.subIconData = subIconData
     }
 
     /// "餐饮 · 午餐";没有二级分类时就是 "餐饮"。
     public var displayCategory: String {
         if let subCategoryName { "\(topCategoryName) · \(subCategoryName)" } else { topCategoryName }
     }
+
+    /// 账单行显示的自定义图标:二级分类有就用它,否则用一级分类的;都没有就是 nil(界面改用 SF Symbol)。
+    public var displayIconData: Data? { subIconData ?? topIconData }
 }
 
 extension LedgerEntry {
@@ -76,7 +83,8 @@ extension LedgerEntry {
             topSymbolName: top?.symbolName ?? Uncategorized.symbolName,
             topIconData: top?.iconData,
             subCategoryID: sub?.id,
-            subCategoryName: sub?.name
+            subCategoryName: sub?.name,
+            subIconData: sub?.iconData
         )
     }
 }

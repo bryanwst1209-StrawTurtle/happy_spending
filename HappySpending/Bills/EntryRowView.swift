@@ -8,7 +8,7 @@ struct EntryRowView: View {
         HStack(spacing: 12) {
             CategoryIconView(
                 symbolName: row.topSymbolName, colorHex: row.topColorHex,
-                iconData: row.topIconData, size: 38
+                iconData: row.displayIconData, size: 38
             )
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.displayCategory).font(.body)
