@@ -9,7 +9,7 @@
 ## 结构
 
 - `Packages/HappySpendingCore`:数据模型与全部可测试的逻辑(Swift Package)
-- `HappySpending`:SwiftUI 界面
+- `HappySpending`:SwiftUI 界面(记账、账单、统计、设置)
 - `project.yml`:XcodeGen 配置,`.xcodeproj` 由它生成,不入库
 
 ## 常用命令
