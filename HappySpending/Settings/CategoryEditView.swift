@@ -57,7 +57,9 @@ struct CategoryEditView: View {
             if category.parent == nil {
                 Section("二级分类") {
                     ForEach(activeChildren, id: \.id) { child in
-                        NavigationLink(value: child) {
+                        NavigationLink {
+                            CategoryEditView(category: child)
+                        } label: {
                             HStack(spacing: 12) {
                                 CategoryIconView(
                                     symbolName: child.symbolName, colorHex: child.colorHex,

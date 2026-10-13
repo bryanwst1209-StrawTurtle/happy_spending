@@ -30,9 +30,9 @@ struct CategoryManagementView: View {
 
             Section {
                 ForEach(tops, id: \.id) { top in
-                    NavigationLink(value: top) { row(top) }
+                    NavigationLink { CategoryEditView(category: top) } label: { row(top) }
                     ForEach(activeChildren(of: top), id: \.id) { child in
-                        NavigationLink(value: child) { row(child) }
+                        NavigationLink { CategoryEditView(category: child) } label: { row(child) }
                             .padding(.leading, 28)
                     }
                 }
@@ -55,7 +55,6 @@ struct CategoryManagementView: View {
         }
         .navigationTitle("分类管理")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: LedgerCategory.self) { CategoryEditView(category: $0) }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
