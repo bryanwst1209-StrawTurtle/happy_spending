@@ -5,6 +5,7 @@
 - 设计文档:`docs/superpowers/specs/2026-10-10-bookkeeping-app-design.md`
 - 实现计划:`docs/superpowers/plans/2026-10-10-happy-spending-v1.md`
 - 手动检查清单:`docs/manual-test-checklist.md`
+- Apple Pay 自动入账设计:`docs/superpowers/specs/2026-10-13-apple-pay-auto-record-design.md`
 
 ## 结构
 
