@@ -60,15 +60,21 @@ import SwiftData
 
 @MainActor
 struct DefaultCategoriesTests {
-    private func seeded() throws -> (container: ModelContainer, all: [LedgerCategory]) {
+    /// 必须一直持有容器:容器一释放,里面的分类对象就会失效。
+    private struct Seeded {
+        let container: ModelContainer
+        let all: [LedgerCategory]
+    }
+
+    private func seeded() throws -> Seeded {
         let container = try makeTestContainer()
         try DefaultCategories.seedIfNeeded(in: container.mainContext)
         let all = try container.mainContext.fetch(FetchDescriptor<LedgerCategory>())
-        return (container, all)
+        return Seeded(container: container, all: all)
     }
 
-    private func tops(_ all: [LedgerCategory], _ kind: EntryKind) -> [LedgerCategory] {
-        all.filter { $0.parent == nil && $0.kind == kind }.sorted { $0.sortOrder < $1.sortOrder }
+    private func tops(_ categories: [LedgerCategory], _ kind: EntryKind) -> [LedgerCategory] {
+        categories.filter { $0.parent == nil && $0.kind == kind }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private func childNames(of top: LedgerCategory) -> [String] {
@@ -76,22 +82,22 @@ struct DefaultCategoriesTests {
     }
 
     @Test func expenseTopLevelsAreTheAuthorsOnesFirstThenTheGenericOnes() throws {
-        let (_, all) = try seeded()
-        #expect(tops(all, .expense).map(\.name) == [
+        let store = try seeded()
+        #expect(tops(store.all, .expense).map(\.name) == [
             "日用", "餐饮", "交通", "宠物", "娱乐", "游戏", "旅游", "汽车", "其他", "服饰",
             "购物", "居住", "医疗",
         ])
     }
 
     @Test func incomeCategoriesAreUnchanged() throws {
-        let (_, all) = try seeded()
-        #expect(tops(all, .income).map(\.name) == ["工资", "奖金", "其他收入"])
-        #expect(all.filter { $0.kind == .income && $0.parent != nil }.isEmpty)
+        let store = try seeded()
+        #expect(tops(store.all, .income).map(\.name) == ["工资", "奖金", "其他收入"])
+        #expect(store.all.filter { $0.kind == .income && $0.parent != nil }.isEmpty)
     }
 
     @Test func subcategoriesMatchTheSpec() throws {
-        let (_, all) = try seeded()
-        let byName = Dictionary(uniqueKeysWithValues: tops(all, .expense).map { ($0.name, $0) })
+        let store = try seeded()
+        let byName = Dictionary(uniqueKeysWithValues: tops(store.all, .expense).map { ($0.name, $0) })
 
         #expect(childNames(of: byName["游戏"]!) == ["原神", "ZZZ", "steam", "暴雪"])
         #expect(childNames(of: byName["娱乐"]!) == ["电影"])
@@ -107,32 +113,32 @@ struct DefaultCategoriesTests {
     }
 
     @Test func noSiblingsShareAName() throws {
-        let (_, all) = try seeded()
+        let store = try seeded()
         var seen = Set<String>()
-        for category in all {
+        for category in store.all {
             let key = "\(category.kind.rawValue)|\(category.parent?.name ?? "-")|\(category.name)"
             #expect(seen.insert(key).inserted, "重复的分类:\(key)")
         }
     }
 
     @Test func seededCategoriesRespectTheTwoLevelRule() throws {
-        let (_, all) = try seeded()
-        let subs = all.filter { $0.parent != nil }
+        let store = try seeded()
+        let subs = store.all.filter { $0.parent != nil }
         #expect(!subs.isEmpty)
         #expect(subs.allSatisfy { $0.parent?.parent == nil })
         #expect(subs.allSatisfy { $0.kind == $0.parent?.kind })
-        #expect(all.allSatisfy { !$0.name.isEmpty && !$0.isArchived })
+        #expect(store.all.allSatisfy { !$0.name.isEmpty && !$0.isArchived })
     }
 
     @Test func subcategoriesInheritTheirParentsColor() throws {
-        let (_, all) = try seeded()
-        #expect(all.filter { $0.parent != nil }.allSatisfy { $0.colorHex == $0.parent?.colorHex })
+        let store = try seeded()
+        #expect(store.all.filter { $0.parent != nil }.allSatisfy { $0.colorHex == $0.parent?.colorHex })
     }
 
     @Test func sortOrdersAreUniqueAmongSiblings() throws {
-        let (_, all) = try seeded()
+        let store = try seeded()
         for kind in EntryKind.allCases {
-            let orders = tops(all, kind).map(\.sortOrder)
+            let orders = tops(store.all, kind).map(\.sortOrder)
             #expect(Set(orders).count == orders.count)
         }
     }
@@ -264,11 +270,6 @@ import SwiftData
 
 @MainActor
 struct CategoryManagementTests {
-    private func makeStore() throws -> (container: ModelContainer, context: ModelContext) {
-        let container = try makeTestContainer()
-        return (container, container.mainContext)
-    }
-
     private func all(_ context: ModelContext) throws -> [LedgerCategory] {
         try context.fetch(FetchDescriptor<LedgerCategory>())
     }
@@ -285,20 +286,23 @@ struct CategoryManagementTests {
     // MARK: 名称校验
 
     @Test func nameIsTrimmed() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, _) = try makeFood(context)
         #expect(try CategoryRules.validatedName("  晚餐 \n", among: food.children) == "晚餐")
     }
 
     @Test func blankNamesAreRejected() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, _) = try makeFood(context)
         #expect(throws: CategoryNameError.empty) { try CategoryRules.validatedName("", among: food.children) }
         #expect(throws: CategoryNameError.empty) { try CategoryRules.validatedName("   \n\t ", among: food.children) }
     }
 
     @Test func tenCharactersFitButElevenDoNot() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, _) = try makeFood(context)
         #expect(try CategoryRules.validatedName("一二三四五六七八九十", among: food.children).count == 10)
         #expect(throws: CategoryNameError.tooLong) {
@@ -307,7 +311,8 @@ struct CategoryManagementTests {
     }
 
     @Test func emojiCountAsOneCharacterEach() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, _) = try makeFood(context)
         let ten = String(repeating: "🐶", count: 10)
         let eleven = String(repeating: "🐶", count: 11)
@@ -316,7 +321,8 @@ struct CategoryManagementTests {
     }
 
     @Test func duplicatesIgnoreCaseAndSurroundingSpaces() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, _) = try makeFood(context)
         try CategoryRules.addSubcategory(name: "steam", under: food, in: context)
         #expect(throws: CategoryNameError.duplicate) { try CategoryRules.validatedName(" 午餐 ", among: food.children) }
@@ -324,20 +330,23 @@ struct CategoryManagementTests {
     }
 
     @Test func archivedSiblingsStillCountAsDuplicates() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, lunch) = try makeFood(context)
         CategoryRules.archive(lunch)
         #expect(throws: CategoryNameError.duplicate) { try CategoryRules.validatedName("午餐", among: food.children) }
     }
 
     @Test func keepingYourOwnNameIsNotADuplicate() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, lunch) = try makeFood(context)
         #expect(try CategoryRules.validatedName("午餐", among: food.children, excluding: lunch) == "午餐")
     }
 
     @Test func sameSubcategoryNameIsFineUnderDifferentParents() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, _) = try makeFood(context)
         let car = CategoryRules.addTopLevel(
             name: "汽车", symbolName: "car.fill", colorHex: "#6C7A89",
@@ -349,7 +358,8 @@ struct CategoryManagementTests {
     }
 
     @Test func topLevelDuplicatesAreScopedToTheKind() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         CategoryRules.addTopLevel(name: "其他", symbolName: "ellipsis.circle.fill", colorHex: "#8E8E93", kind: .expense, sortOrder: 0, in: context)
         let income = try CategoryRules.createTopLevel(name: "其他", kind: .income, among: try all(context), in: context)
         #expect(income.kind == .income)
@@ -367,7 +377,8 @@ struct CategoryManagementTests {
     // MARK: 新增
 
     @Test func createTopLevelAppendsWithTheNextPaletteColor() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         try DefaultCategories.seedIfNeeded(in: context)
         let existing = try all(context)
 
@@ -383,7 +394,8 @@ struct CategoryManagementTests {
     }
 
     @Test func createSubcategoryInheritsColorAndKindAndAppends() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, _) = try makeFood(context)
 
         let created = try CategoryRules.createSubcategory(name: "夜宵", under: food, in: context)
@@ -395,7 +407,8 @@ struct CategoryManagementTests {
     }
 
     @Test func subcategoriesCannotBeNested() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (_, lunch) = try makeFood(context)
         #expect(throws: CategoryError.parentMustBeTopLevel) {
             try CategoryRules.createSubcategory(name: "工作餐", under: lunch, in: context)
@@ -403,7 +416,8 @@ struct CategoryManagementTests {
     }
 
     @Test func rejectedNamesCreateNothing() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, _) = try makeFood(context)
         let before = try all(context).count
         #expect(throws: CategoryNameError.duplicate) {
@@ -426,7 +440,8 @@ struct CategoryManagementTests {
     }
 
     @Test func manyNewCategoriesKeepGettingColors() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         for index in 0..<20 {
             let created = try CategoryRules.createTopLevel(
                 name: "分类\(index)", kind: .expense, among: try all(context), in: context
@@ -438,14 +453,16 @@ struct CategoryManagementTests {
     // MARK: 重命名
 
     @Test func renameChangesTheNameAndTrims() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (_, lunch) = try makeFood(context)
         try CategoryRules.rename(lunch, to: "  工作餐 ", among: try all(context))
         #expect(lunch.name == "工作餐")
     }
 
     @Test func renameToADuplicateKeepsTheOldName() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, lunch) = try makeFood(context)
         try CategoryRules.addSubcategory(name: "晚餐", under: food, in: context)
         #expect(throws: CategoryNameError.duplicate) {
@@ -455,7 +472,8 @@ struct CategoryManagementTests {
     }
 
     @Test func renamingToTheSameNameIsAllowed() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (_, lunch) = try makeFood(context)
         try CategoryRules.rename(lunch, to: "午餐", among: try all(context))
         #expect(lunch.name == "午餐")
@@ -464,7 +482,8 @@ struct CategoryManagementTests {
     // MARK: 恢复
 
     @Test func restoringATopLevelBringsItsChildrenBack() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, lunch) = try makeFood(context)
         CategoryRules.archive(food)
 
@@ -475,7 +494,8 @@ struct CategoryManagementTests {
     }
 
     @Test func aChildCannotBeRestoredWhileItsParentIsArchived() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, lunch) = try makeFood(context)
         CategoryRules.archive(food)
 
@@ -485,7 +505,8 @@ struct CategoryManagementTests {
     }
 
     @Test func aChildArchivedOnItsOwnCanBeRestored() throws {
-        let (_, context) = try makeStore()
+        let container = try makeTestContainer()
+        let context = container.mainContext
         let (food, lunch) = try makeFood(context)
         CategoryRules.archive(lunch)
         #expect(!food.isArchived)
@@ -1057,6 +1078,7 @@ Create `Packages/HappySpendingCore/Tests/HappySpendingCoreTests/RowIconTests.swi
 
 ```swift
 import Testing
+import Foundation
 import SwiftData
 @testable import HappySpendingCore
 
