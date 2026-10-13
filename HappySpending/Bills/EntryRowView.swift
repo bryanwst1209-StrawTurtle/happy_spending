@@ -11,7 +11,17 @@ struct EntryRowView: View {
                 iconData: row.displayIconData, size: 38
             )
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.displayCategory).font(.body)
+                HStack(spacing: 6) {
+                    Text(row.displayCategory).font(.body)
+                    if row.isAuto {
+                        Text("自动")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                    }
+                }
                 if !row.note.isEmpty {
                     Text(row.note).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }

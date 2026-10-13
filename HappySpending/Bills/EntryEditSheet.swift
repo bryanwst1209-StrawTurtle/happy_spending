@@ -63,12 +63,17 @@ struct EntryEditSheet: View {
 
     private func apply() {
         guard form.amount.isValid else { return }
+        let previousCategoryID = entry.category?.id
         entry.amountInCents = form.amount.cents
         entry.kind = form.kind
         entry.date = DayStamp.stamp(form.date)
         entry.note = form.note.trimmingCharacters(in: .whitespacesAndNewlines)
         entry.category = categories.first { $0.id == form.categoryID }
         do {
+            // 改了自动账的分类就记住"这个商户 → 这个分类"。
+            try MerchantMemory.learnFromEdit(
+                entry: entry, previousCategoryID: previousCategoryID, in: context
+            )
             try context.save()
             dismiss()
         } catch {
