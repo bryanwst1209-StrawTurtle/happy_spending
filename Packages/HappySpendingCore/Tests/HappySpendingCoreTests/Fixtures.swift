@@ -11,7 +11,7 @@ func makeDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 0, _ minute: 
 
 func makeTestContainer() throws -> ModelContainer {
     try ModelContainer(
-        for: LedgerCategory.self, LedgerEntry.self,
+        for: LedgerCategory.self, LedgerEntry.self, MerchantCategory.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 }

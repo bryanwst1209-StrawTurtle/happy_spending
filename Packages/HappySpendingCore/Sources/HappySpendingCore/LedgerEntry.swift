@@ -10,11 +10,23 @@ public final class LedgerEntry {
     public var createdAt: Date
     public var note: String
     public var category: LedgerCategory?
+    /// 空表示手动账;有值表示自动账(见 `EntrySource`)。
+    public var autoSourceRaw: String?
+    /// 商户原名(去首尾空白),自动账才有,作为"记住我的选择"的依据。
+    public var merchant: String?
 
     public var kind: EntryKind {
         get { EntryKind(rawValue: kindRaw) ?? .expense }
         set { kindRaw = newValue.rawValue }
     }
+
+    public var autoSource: EntrySource? {
+        get { autoSourceRaw.flatMap(EntrySource.init(rawValue:)) }
+        set { autoSourceRaw = newValue?.rawValue }
+    }
+
+    /// 以后新增了来源取值、而旧版本不认识时,仍然算自动账。
+    public var isAuto: Bool { autoSourceRaw != nil }
 
     public init(
         id: UUID = UUID(),
@@ -24,7 +36,9 @@ public final class LedgerEntry {
         note: String = "",
         category: LedgerCategory? = nil,
         createdAt: Date = .now,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        autoSource: EntrySource? = nil,
+        merchant: String? = nil
     ) {
         self.id = id
         self.amountInCents = amountInCents
@@ -33,5 +47,7 @@ public final class LedgerEntry {
         self.createdAt = createdAt
         self.note = note
         self.category = category
+        self.autoSourceRaw = autoSource?.rawValue
+        self.merchant = merchant
     }
 }

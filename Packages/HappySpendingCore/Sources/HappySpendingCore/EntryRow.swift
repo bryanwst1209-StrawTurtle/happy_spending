@@ -24,6 +24,8 @@ public struct EntryRow: Equatable, Identifiable, Sendable {
     public let subCategoryName: String?
     /// 二级分类自己的自定义图标(没有二级分类或没上传时为 nil)。
     public let subIconData: Data?
+    /// 是否是自动记下的账(账单行显示"自动"标记)。
+    public let isAuto: Bool
 
     public init(
         id: UUID = UUID(),
@@ -39,7 +41,8 @@ public struct EntryRow: Equatable, Identifiable, Sendable {
         topIconData: Data? = nil,
         subCategoryID: UUID? = nil,
         subCategoryName: String? = nil,
-        subIconData: Data? = nil
+        subIconData: Data? = nil,
+        isAuto: Bool = false
     ) {
         self.id = id
         self.date = date
@@ -55,6 +58,7 @@ public struct EntryRow: Equatable, Identifiable, Sendable {
         self.subCategoryID = subCategoryID
         self.subCategoryName = subCategoryName
         self.subIconData = subIconData
+        self.isAuto = isAuto
     }
 
     /// "餐饮 · 午餐";没有二级分类时就是 "餐饮"。
@@ -84,7 +88,8 @@ extension LedgerEntry {
             topIconData: top?.iconData,
             subCategoryID: sub?.id,
             subCategoryName: sub?.name,
-            subIconData: sub?.iconData
+            subIconData: sub?.iconData,
+            isAuto: isAuto
         )
     }
 }
