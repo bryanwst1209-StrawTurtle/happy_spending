@@ -123,7 +123,7 @@ struct CategoryManagementTests {
         #expect(created.sortOrder == 13)
         #expect(created.colorHex == CategoryPalette.color(at: 13))
         #expect(!created.isArchived)
-        #expect(created.iconDataIsNil)
+        #expect(created.iconData == nil)
         #expect(try all(context).contains { $0 === created })
     }
 
@@ -249,8 +249,4 @@ struct CategoryManagementTests {
 
         #expect(!lunch.isArchived)
     }
-}
-
-private extension LedgerCategory {
-    var iconDataIsNil: Bool { true }
 }

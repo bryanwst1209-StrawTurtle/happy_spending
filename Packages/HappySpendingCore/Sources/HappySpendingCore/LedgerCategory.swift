@@ -6,6 +6,8 @@ public final class LedgerCategory {
     public var id: UUID
     public var name: String
     public var symbolName: String
+    /// 自定义图标(128×128 PNG,见 `CategoryIcon`);有值时代替 `symbolName` 显示。
+    public var iconData: Data?
     public var colorHex: String
     public var kindRaw: String
     public var sortOrder: Int
@@ -35,11 +37,13 @@ public final class LedgerCategory {
         colorHex: String,
         kind: EntryKind,
         sortOrder: Int = 0,
-        parent: LedgerCategory? = nil
+        parent: LedgerCategory? = nil,
+        iconData: Data? = nil
     ) {
         self.id = id
         self.name = name
         self.symbolName = symbolName
+        self.iconData = iconData
         self.colorHex = colorHex
         self.kindRaw = kind.rawValue
         self.sortOrder = sortOrder
