@@ -207,6 +207,34 @@ struct ScreenTextParserTests {
         #expect(record.note == "微信")
     }
 
+    /// 真实样本:年月日被识别成 `·`、`F`、`E`,收款人是头像,识别成 `•`。
+    @Test func parsesATransferWhoseDateCharactersWereReadAsLetters() throws {
+        let text = """
+        16:19 \\
+        账单
+        全部账单
+        扫二维码付款-给•
+        -0.50
+        当前状态
+        支付成功
+        收款方备注
+        二维码收款
+        支付方式
+        中信银行储蓄卡（0000）
+        转账时间
+        2026·10F14E 14:54:48
+        转账单号
+        10000000000000000000000000000001
+        账单服务
+        """
+        let record = try #require(payment(ScreenTextParser.parse(text, calendar: cal)))
+
+        #expect(record.cents == 50)
+        #expect(record.merchant == nil)
+        #expect(record.note == "微信")
+        #expect(record.eventDate == date(2026, 10, 14, 14, 54, 48))
+    }
+
     @Test func parsesTheWeChatMerchantBillPage() throws {
         let record = try #require(payment(ScreenTextParser.parse(wechatMerchantBill, calendar: cal)))
 

@@ -178,9 +178,10 @@ public enum ScreenTextParser {
 
     /// 允许日期里夹杂几个分隔字符(`2026年10月14日 17:37:40`),并**校验**每一项:
     /// 识别错误产生的不可能的日期返回 nil,而不是被日历悄悄进位成别的日子。
-    /// 分隔符不能是字母:识别常把 0、1 认成 O、l,被分隔符吞掉就会落到别的月份。
+    /// 分隔符一般不能是字母:识别常把 0、1 认成 O、l,被分隔符吞掉就会落到别的月份。
+    /// 例外是 F、E:真实样本里"月""日"会被识别成这两个字母(`2026·10F14E`),它们不像数字。
     private static func parseDateTime(_ text: String, calendar: Calendar) -> Date? {
-        let separator = "[^0-9A-Za-z]"
+        let separator = "(?:[^0-9A-Za-z]|[EF])"
         let pattern = "(\\d{4})\(separator){1,3}(\\d{1,2})\(separator){1,3}(\\d{1,2})\(separator){0,3}(\\d{1,2}):(\\d{2})(?::(\\d{2}))?"
         guard let g = TextMatch.captures(pattern, in: text),
               let year = Int(g[1]), let month = Int(g[2]), let day = Int(g[3]),
