@@ -7,7 +7,7 @@ import HappySpendingCore
 struct RecordScreenTextIntent: AppIntent {
     static var title: LocalizedStringResource = "记一笔(屏幕识别)"
     static var description = IntentDescription(
-        "识别微信、支付宝支付成功页或账单详情页上的文字,把这笔支出记下来。通常接在“拍摄屏幕截图”和“提取图像中的文字”后面。"
+        "识别微信、支付宝支付成功页、账单详情页或微信支付消息列表上的文字,把支出记下来。通常接在“拍摄屏幕截图”和“提取图像中的文字”后面。"
     )
     static var openAppWhenRun: Bool = false
 

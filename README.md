@@ -7,6 +7,7 @@
 - 手动检查清单:`docs/manual-test-checklist.md`
 - Apple Pay 自动入账设计:`docs/superpowers/specs/2026-10-13-apple-pay-auto-record-design.md`
 - 屏幕识别与通知自动入账设计:`docs/superpowers/specs/2026-10-15-screen-and-notification-auto-record-design.md`
+- 微信支付消息列表记账设计:`docs/superpowers/specs/2026-10-15-wechat-list-screen-record-design.md`
 
 ## 结构
 
