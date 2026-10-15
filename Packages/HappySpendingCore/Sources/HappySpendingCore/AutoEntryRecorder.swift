@@ -7,7 +7,7 @@ public struct AutoEntryResult: Equatable, Sendable {
     public let cents: Int
     /// 给快捷指令显示的一句话,例如 "已记 ¥15.12 · 支付宝"。
     public let message: String
-    /// 单号相同,没有新建。
+    /// 去重标识相同(单号,或微信的金额 + 分钟),没有新建。
     public let isDuplicate: Bool
 
     public init(entryID: UUID, cents: Int, message: String, isDuplicate: Bool = false) {
@@ -35,7 +35,7 @@ public enum AutoEntryRecorder {
     }
 
     /// 记一笔已经解析好的支出。
-    /// 单号相同就跳过;分类依次取商户记忆、平台分类映射,都没有就是"未分类"。
+    /// 去重标识相同就跳过;分类依次取商户记忆、平台分类映射,都没有就是"未分类"。
     @discardableResult
     public static func record(
         _ payment: PaymentRecord,
@@ -54,7 +54,7 @@ public enum AutoEntryRecorder {
                 return AutoEntryResult(
                     entryID: existing.id,
                     cents: existing.amountInCents,
-                    message: "已记过这一笔(单号相同)",
+                    message: "已记过这一笔",
                     isDuplicate: true
                 )
             }

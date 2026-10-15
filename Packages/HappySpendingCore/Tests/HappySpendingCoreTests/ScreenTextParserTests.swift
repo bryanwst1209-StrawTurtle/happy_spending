@@ -177,6 +177,7 @@ struct ScreenTextParserTests {
         let text = wechatBill.replacingOccurrences(of: "2026·10 514E 17:37:40", with: "2026-10-14 17:37:40")
         let record = try #require(payment(ScreenTextParser.parse(text, calendar: cal)))
         #expect(record.eventDate == date(2026, 10, 14, 17, 37, 40))
+        #expect(record.orderRef == "微信|20|2026-10-14 17:37")
     }
 
     @Test func aChineseFormattedWeChatDateIsParsed() throws {
@@ -242,7 +243,8 @@ struct ScreenTextParserTests {
         #expect(record.merchant == "示例超市")
         #expect(record.note == "示例超市")
         #expect(record.eventDate == date(2026, 10, 14, 18, 23, 27))
-        #expect(record.orderRef == "4000000000000000000000000000")
+        // 时间读出来了:用"金额 + 分钟"作去重标识,和消息列表上的同一笔对得上。
+        #expect(record.orderRef == "微信|14770|2026-10-14 18:23")
     }
 
     @Test func aWeChatMerchantBillWithOnlyNavigationAboveTheAmountHasNoMerchant() throws {

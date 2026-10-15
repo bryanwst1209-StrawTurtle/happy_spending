@@ -14,7 +14,7 @@ public final class LedgerEntry {
     public var autoSourceRaw: String?
     /// 商户原名(去首尾空白),自动账才有,作为"记住我的选择"的依据。
     public var merchant: String?
-    /// 单号的 SHA-256 哈希,只用于"单号相同就跳过";没有单号就是 nil。
+    /// 去重标识(单号,或微信的"金额 + 分钟")的 SHA-256 哈希,只用于跳过重复;没有就是 nil。
     public var orderRefHash: String?
 
     public var kind: EntryKind {

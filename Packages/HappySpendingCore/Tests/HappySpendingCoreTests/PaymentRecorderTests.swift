@@ -126,7 +126,7 @@ struct PaymentRecorderTests {
         #expect(!first.isDuplicate)
         #expect(second.isDuplicate)
         #expect(second.entryID == first.entryID)
-        #expect(second.message == "已记过这一笔(单号相同)")
+        #expect(second.message == "已记过这一笔")
     }
 
     @Test func differentOrderNumbersAreBothRecorded() throws {

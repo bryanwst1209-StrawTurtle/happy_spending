@@ -67,13 +67,18 @@ public enum ScreenTextParser {
             merchant = signed.index > 0 ? cleanMerchant(lines[signed.index - 1]) : nil
         }
 
+        // 去重:时间读出来了就用"金额 + 分钟",和消息列表上的同一笔对得上;读不出来退回单号。
+        let eventDate = dateTime(afterAnyLabel: ["转账时间", "支付时间"], in: lines, calendar: calendar)
+        let orderRef = eventDate.map { WeChatPaymentKey.make(cents: cents, time: $0, calendar: calendar) }
+            ?? digits(afterAnyLabel: ["转账单号", "交易单号"], in: lines)
+
         return .payment(PaymentRecord(
             source: .screenText,
             cents: cents,
             merchant: merchant,
             note: merchant ?? "微信",
-            eventDate: dateTime(afterAnyLabel: ["转账时间", "支付时间"], in: lines, calendar: calendar),
-            orderRef: digits(afterAnyLabel: ["转账单号", "交易单号"], in: lines)
+            eventDate: eventDate,
+            orderRef: orderRef
         ))
     }
 

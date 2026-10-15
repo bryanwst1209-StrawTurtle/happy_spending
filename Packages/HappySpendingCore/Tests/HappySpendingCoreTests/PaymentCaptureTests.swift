@@ -156,7 +156,7 @@ struct PaymentCaptureTests {
 
         #expect(first.recorded)
         #expect(!second.recorded)
-        #expect(second.message == "已记过这一笔(单号相同)")
+        #expect(second.message == "已记过这一笔")
         #expect(try entries(context).count == 1)
     }
 
