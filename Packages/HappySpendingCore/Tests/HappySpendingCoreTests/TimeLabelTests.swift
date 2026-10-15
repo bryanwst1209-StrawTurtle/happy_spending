@@ -36,6 +36,12 @@ struct TimeLabelTests {
         }
     }
 
+    /// 识别出来的中文标点常是全角(样本里的 `，` `（` `＞`),时间里的冒号也可能是 `：`。
+    @Test func aFullWidthColonIsAccepted() {
+        #expect(resolve("13：00") == makeDate(2026, 10, 15, 13, 0))
+        #expect(resolve("昨天 18：23") == makeDate(2026, 10, 14, 18, 23))
+    }
+
     @Test func aMonthAndDayIsThisYear() {
         #expect(resolve("10月8日 18:23") == makeDate(2026, 10, 8, 18, 23))
     }

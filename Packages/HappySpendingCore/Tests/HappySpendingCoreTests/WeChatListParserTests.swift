@@ -166,6 +166,64 @@ struct WeChatListParserTests {
         #expect(cards[1].eventDate == makeDate(2026, 10, 15, 11, 1))
     }
 
+    /// 认不出的时间标签(12 小时制、乱码)下面的卡片宁可跳过,也不能借用上一个标签的时间、悄悄记错日期。
+    @Test func anUnreadableTimeLabelDoesNotLendThePreviousTime() throws {
+        for unreadable in ["下午1:00", "昨天 下午6:23", "昨天 18.23", "星期六 11:0l", "13:00 收", "25:00"] {
+            let text = """
+            微信支付
+            昨天 09:00
+            示例甲
+            使用零钱支付
+            ·10.00
+            账单详情＞
+            \(unreadable)
+            示例乙
+            使用零钱支付
+            ·20.00
+            账单详情＞
+            """
+            let cards = try #require(parse(text))
+            #expect(cards.map(\.cents) == [1000], "\(unreadable)")
+        }
+    }
+
+    /// 普通的商户名不能被当成"像时间的行"而打断卡片。
+    @Test func merchantNamesThatStartLikeDatesStillWork() throws {
+        let text = """
+        微信支付
+        13:00
+        周黑鸭
+        使用零钱支付
+        ·30.00
+        账单详情＞
+        昨天咖啡
+        使用零钱支付
+        ·12.00
+        账单详情＞
+        """
+        let cards = try #require(parse(text))
+        #expect(cards.map(\.merchant) == ["周黑鸭", "昨天咖啡"])
+    }
+
+    /// 金额取支出标志之后的那一行:识别把上一张卡的金额挪到"账单详情"后面时,不能记成下一张卡的金额。
+    @Test func theAmountMustComeAfterTheExpenseMarker() throws {
+        let text = """
+        微信支付
+        11:01
+        示例甲
+        使用零钱支付
+        账单详情＞
+        · 9.90
+        示例乙
+        使用零钱支付
+        · 3.00
+        账单详情＞
+        """
+        let cards = try #require(parse(text))
+        #expect(cards.map(\.cents) == [300])
+        #expect(cards.map(\.merchant) == ["示例乙"])
+    }
+
     @Test func aCardCutOffAtTheBottomIsSkipped() throws {
         let noAmount = """
         微信支付

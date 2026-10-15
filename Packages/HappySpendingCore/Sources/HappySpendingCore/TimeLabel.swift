@@ -6,9 +6,15 @@ enum TimeLabel {
         "日": 1, "天": 1, "一": 2, "二": 3, "三": 4, "四": 5, "五": 6, "六": 7,
     ]
 
+    /// 识别出来的冒号、数字可能是全角(`13：00`),统一成半角再匹配。
+    private static func normalized(_ line: String) -> String {
+        (line.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? line)
+            .trimmingCharacters(in: .whitespaces)
+    }
+
     /// 整行是时间标签时,按 `now` 换算成具体时间(精确到分钟);不是就返回 nil。
     static func resolve(_ line: String, now: Date, calendar: Calendar) -> Date? {
-        let text = line.trimmingCharacters(in: .whitespaces)
+        let text = normalized(line)
         let today = calendar.startOfDay(for: now)
 
         if let g = TextMatch.captures("^(\\d{1,2}):(\\d{2})$", in: text) {
@@ -42,6 +48,17 @@ enum TimeLabel {
             return date(year: year - 1, month: g[1], day: g[2], calendar).flatMap { at($0, g[3], g[4], calendar) }
         }
         return nil
+    }
+
+    /// 看起来像时间标签、但 `resolve` 认不出的行(12 小时制的 `下午1:00`、乱码的 `昨天 18.23`)。
+    /// 只认带时间数字的开头,所以"周黑鸭""昨天咖啡"这类商户名不算。
+    static func looksLikeTime(_ line: String) -> Bool {
+        let pattern = "^(\\d{1,2}\\s*:"
+            + "|(昨天|前天)\\s*(\\d|上午|下午|凌晨|中午|晚上)"
+            + "|(星期|周)[一二三四五六日天]\\s*\\d"
+            + "|(上午|下午|凌晨|中午|晚上)\\s*\\d"
+            + "|\\d{1,4}年\\s*\\d|\\d{1,2}月\\s*\\d{1,2}日)"
+        return TextMatch.captures(pattern, in: normalized(line)) != nil
     }
 
     /// 校验过的某一天(0 点);不存在的日期(2 月 30 日)返回 nil,而不是被日历进位。

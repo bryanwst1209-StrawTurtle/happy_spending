@@ -23,6 +23,10 @@ public enum WeChatListParser {
             if let label = TimeLabel.resolve(line, now: now, calendar: calendar) {
                 time = label
                 segment = []
+            } else if TimeLabel.looksLikeTime(line) {
+                // 认不出的时间标签:它下面的卡片宁可跳过,也不借用上一个标签的时间、悄悄记错日期。
+                time = nil
+                segment = []
             } else if line.hasPrefix("账单详情") || line.hasPrefix("查看账单详情") {
                 // 一段到此结束;第一个时间标签之前的段(顶部截断的卡片)没有时间,跳过。
                 if let time, let record = card(segment, time: time, calendar: calendar) {
@@ -42,7 +46,8 @@ public enum WeChatListParser {
 
     private static func card(_ lines: [String], time: Date, calendar: Calendar) -> PaymentRecord? {
         guard let markerIndex = lines.firstIndex(where: isExpenseMarker),
-              let amountText = lines.lazy.compactMap(amount).first,
+              // 金额只取支出标志之后的:识别偶尔把上一张卡的行挪到"账单详情"后面,不能借来当金额。
+              let amountText = lines[(markerIndex + 1)...].lazy.compactMap(amount).first,
               let cents = try? AmountText.cents(from: amountText)
         else { return nil }
 
