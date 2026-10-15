@@ -157,6 +157,15 @@ struct ScreenTextParserTests {
         #expect(record.eventDate == nil)
     }
 
+    /// 识别把数字认成字母(0→O、1→l)时,不能让分隔符吞掉它、把账记到别的月份。
+    @Test func aDigitMisreadAsALetterLeavesTheEventDateEmpty() throws {
+        for garbled in ["2026-1O-14 17:37:40", "2026年1O月14日 17:37:40", "2026-10-l4 17:37:40"] {
+            let text = wechatBill.replacingOccurrences(of: "2026·10 514E 17:37:40", with: garbled)
+            let record = try #require(payment(ScreenTextParser.parse(text, calendar: cal)))
+            #expect(record.eventDate == nil, "\(garbled)")
+        }
+    }
+
     @Test func aFullyMaskedWeChatPayeeHasNoMerchant() throws {
         let text = wechatBill.replacingOccurrences(of: "扫二维码付款-给示例商户", with: "扫二维码付款-给●")
         let record = try #require(payment(ScreenTextParser.parse(text, calendar: cal)))
@@ -190,6 +199,30 @@ struct ScreenTextParserTests {
         #expect(record.note == "示例商户**店")
         #expect(record.eventDate == date(2026, 10, 14, 14, 9, 55))
         #expect(record.platformCategory == "日用百货")
+        #expect(record.orderRef != nil)
+    }
+
+    /// 支付宝账单页首屏看不到订单号:用"金额 + 精确到秒的支付时间"当这笔支付的单号,
+    /// 同一页连按两次能去重,两笔不同的支付不会撞上。
+    @Test func anAlipayBillWithoutAnOrderNumberIsKeyedByAmountAndPaymentTime() throws {
+        let first = try #require(payment(ScreenTextParser.parse(alipayBill, calendar: cal)))
+        let again = try #require(payment(ScreenTextParser.parse("17:38\n" + alipayBill, calendar: cal)))
+        let otherTime = try #require(payment(ScreenTextParser.parse(
+            alipayBill.replacingOccurrences(of: "14:09:55", with: "14:09:56"), calendar: cal
+        )))
+        let otherAmount = try #require(payment(ScreenTextParser.parse(
+            alipayBill.replacingOccurrences(of: "-15.12", with: "-15.13"), calendar: cal
+        )))
+
+        #expect(first.orderRef != nil)
+        #expect(again.orderRef == first.orderRef)
+        #expect(otherTime.orderRef != first.orderRef)
+        #expect(otherAmount.orderRef != first.orderRef)
+    }
+
+    @Test func anAlipayBillWithoutOrderNumberOrTimeHasNoRef() throws {
+        let text = alipayBill.replacingOccurrences(of: "2026-10-14 14:09:55\n", with: "")
+        let record = try #require(payment(ScreenTextParser.parse(text, calendar: cal)))
         #expect(record.orderRef == nil)
     }
 

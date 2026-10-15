@@ -89,13 +89,19 @@ public enum ScreenTextParser {
             return PlatformCategoryMap.alipay[name] != nil ? name : nil
         }.first
 
+        // 订单号在首屏下方通常看不到:退而用"金额 + 精确到秒的支付时间"标识这一笔,
+        // 这样在同一页连按两次也只记一次。
+        let time = alipayDateTime(in: lines, calendar: calendar)
+        let orderRef = digits(afterAnyLabel: ["订单号"], in: lines)
+            ?? time.map { "支付宝|\(cents)|\($0.text)" }
+
         return .payment(PaymentRecord(
             source: .screenText,
             cents: cents,
             merchant: merchant,
             note: merchant ?? "支付宝",
-            eventDate: alipayDateTime(in: lines, calendar: calendar),
-            orderRef: digits(afterAnyLabel: ["订单号"], in: lines),
+            eventDate: time?.date,
+            orderRef: orderRef,
             platformCategory: platformCategory
         ))
     }
@@ -155,20 +161,23 @@ public enum ScreenTextParser {
     }
 
     /// 支付宝的时间没有固定标签,直接找 `yyyy-MM-dd HH:mm:ss`。
-    private static func alipayDateTime(in lines: [String], calendar: Calendar) -> Date? {
+    /// 返回解析出的时间和它在页面上的原文(原文用来生成单号)。
+    private static func alipayDateTime(in lines: [String], calendar: Calendar) -> (date: Date, text: String)? {
         for line in lines {
             if let groups = TextMatch.captures("(\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})", in: line),
                let date = parseDateTime(groups[1], calendar: calendar) {
-                return date
+                return (date, groups[1])
             }
         }
         return nil
     }
 
-    /// 允许日期里夹杂几个非数字字符(`2026年10月14日 17:37:40`),并**校验**每一项:
+    /// 允许日期里夹杂几个分隔字符(`2026年10月14日 17:37:40`),并**校验**每一项:
     /// 识别错误产生的不可能的日期返回 nil,而不是被日历悄悄进位成别的日子。
+    /// 分隔符不能是字母:识别常把 0、1 认成 O、l,被分隔符吞掉就会落到别的月份。
     private static func parseDateTime(_ text: String, calendar: Calendar) -> Date? {
-        let pattern = "(\\d{4})\\D{1,3}(\\d{1,2})\\D{1,3}(\\d{1,2})\\D{0,3}(\\d{1,2}):(\\d{2})(?::(\\d{2}))?"
+        let separator = "[^0-9A-Za-z]"
+        let pattern = "(\\d{4})\(separator){1,3}(\\d{1,2})\(separator){1,3}(\\d{1,2})\(separator){0,3}(\\d{1,2}):(\\d{2})(?::(\\d{2}))?"
         guard let g = TextMatch.captures(pattern, in: text),
               let year = Int(g[1]), let month = Int(g[2]), let day = Int(g[3]),
               let hour = Int(g[4]), let minute = Int(g[5])

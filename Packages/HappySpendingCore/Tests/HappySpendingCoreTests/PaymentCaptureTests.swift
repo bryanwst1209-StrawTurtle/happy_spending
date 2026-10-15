@@ -160,6 +160,18 @@ struct PaymentCaptureTests {
         #expect(try entries(context).count == 1)
     }
 
+    @Test func triggeringTheSameAlipayBillTwiceRecordsItOnce() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+
+        let first = try PaymentCapture.recordScreenText(alipayBill, now: now, calendar: testCalendar, in: context)
+        let second = try PaymentCapture.recordScreenText(alipayBill, now: now, calendar: testCalendar, in: context)
+
+        #expect(first.recorded)
+        #expect(!second.recorded)
+        #expect(try entries(context).count == 1)
+    }
+
     @Test func theErrorHasAReadableChineseMessage() {
         #expect(PaymentCaptureError.notPaymentPage.message == "没有识别到支付页面")
         #expect(PaymentCaptureError.notPaymentPage.errorDescription == "没有识别到支付页面")
