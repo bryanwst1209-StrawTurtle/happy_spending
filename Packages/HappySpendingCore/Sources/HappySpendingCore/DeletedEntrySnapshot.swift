@@ -1,7 +1,7 @@
 import Foundation
 
 /// 删除一笔账之前的快照,用于"撤销"重新建回这一笔。
-/// 自动账的来源和商户也要带回来,否则撤销后它会变成手动账(丢掉"自动"标记和分类记忆)。
+/// 自动账的来源、商户和单号哈希也要带回来,否则撤销后它会变成手动账(丢掉"自动"标记和分类记忆)。
 public struct DeletedEntrySnapshot: Equatable, Sendable {
     public let id: UUID
     public let amountInCents: Int
@@ -12,6 +12,7 @@ public struct DeletedEntrySnapshot: Equatable, Sendable {
     public let categoryID: UUID?
     public let autoSourceRaw: String?
     public let merchant: String?
+    public let orderRefHash: String?
 
     public init(_ entry: LedgerEntry) {
         id = entry.id
@@ -23,6 +24,7 @@ public struct DeletedEntrySnapshot: Equatable, Sendable {
         categoryID = entry.category?.id
         autoSourceRaw = entry.autoSourceRaw
         merchant = entry.merchant
+        orderRefHash = entry.orderRefHash
     }
 
     /// 用快照重新建一笔账(还没插入上下文)。分类按 ID 在 `categories` 里找,找不到就是未分类。
@@ -36,7 +38,8 @@ public struct DeletedEntrySnapshot: Equatable, Sendable {
             category: categories.first { $0.id == categoryID },
             createdAt: createdAt,
             calendar: DayStamp.calendar,
-            merchant: merchant
+            merchant: merchant,
+            orderRefHash: orderRefHash
         )
         entry.autoSourceRaw = autoSourceRaw
         return entry
