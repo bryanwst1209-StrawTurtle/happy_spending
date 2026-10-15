@@ -27,3 +27,5 @@ targets:
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         CODE_SIGN_STYLE: Automatic
+        # 个人开发者账号(Bryan Wang (Personal Team))。团队 ID 本来就嵌在每个签过名的 app 里,不是秘密。
+        DEVELOPMENT_TEAM: V39F967X54
