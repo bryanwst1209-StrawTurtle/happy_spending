@@ -44,6 +44,40 @@ struct ScreenTextParserTests {
     本服务由财付通提供
     """
 
+    /// 微信·商户账单详情页:没有"付款-给X"这一行,商户名单独一行在金额上方。
+    private let wechatMerchantBill = """
+    16:18 \\
+    账单
+    ミ分100
+    全部账单
+    示例超市
+    -147.70
+    当前状态
+    支付成功
+    支付时间
+    2026年10月14日 18:23:27
+    商品
+    商品
+    商户全称
+    示例（中国）投资有限公司
+    收单机构
+    财付通支付科技有限公司
+    支付方式
+    招商银行信用卡（0000）
+    交易单号
+    4000000000000000000000000000
+    商户单号
+    X0000000000000000000X000
+    账单服务
+    ⑦ 对订单有疑惑
+    目在此商户交易
+    园 发起群收款
+    ③ 申请电子凭证
+    联系商家
+    &商家电话
+    本服务由财付通提供
+    """
+
     /// 支付宝·账单详情页:顶部混着状态栏和操作按钮的提示("截图识别 / 按住启用")。
     private let alipayBill = """
     截图识别
@@ -168,6 +202,31 @@ struct ScreenTextParserTests {
 
     @Test func aFullyMaskedWeChatPayeeHasNoMerchant() throws {
         let text = wechatBill.replacingOccurrences(of: "扫二维码付款-给示例商户", with: "扫二维码付款-给●")
+        let record = try #require(payment(ScreenTextParser.parse(text, calendar: cal)))
+        #expect(record.merchant == nil)
+        #expect(record.note == "微信")
+    }
+
+    @Test func parsesTheWeChatMerchantBillPage() throws {
+        let record = try #require(payment(ScreenTextParser.parse(wechatMerchantBill, calendar: cal)))
+
+        #expect(record.cents == 14770)
+        #expect(record.merchant == "示例超市")
+        #expect(record.note == "示例超市")
+        #expect(record.eventDate == date(2026, 10, 14, 18, 23, 27))
+        #expect(record.orderRef == "4000000000000000000000000000")
+    }
+
+    @Test func aWeChatMerchantBillWithOnlyNavigationAboveTheAmountHasNoMerchant() throws {
+        let text = wechatMerchantBill.replacingOccurrences(of: "示例超市\n", with: "")
+        let record = try #require(payment(ScreenTextParser.parse(text, calendar: cal)))
+        #expect(record.merchant == nil)
+        #expect(record.note == "微信")
+    }
+
+    /// 转账页的收款人是表情或头像时,"-给"后面识别出来是空的:不能把"扫二维码付款-给"当成商户。
+    @Test func aTransferWithAnUnreadablePayeeDoesNotUseTheTransferLineAsMerchant() throws {
+        let text = wechatBill.replacingOccurrences(of: "扫二维码付款-给示例商户", with: "扫二维码付款-给")
         let record = try #require(payment(ScreenTextParser.parse(text, calendar: cal)))
         #expect(record.merchant == nil)
         #expect(record.note == "微信")

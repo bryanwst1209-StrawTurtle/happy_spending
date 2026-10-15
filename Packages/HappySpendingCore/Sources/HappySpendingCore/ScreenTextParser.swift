@@ -57,11 +57,15 @@ public enum ScreenTextParser {
         if signed.isIncome { return .ignored("收入") }
         guard let cents = try? AmountText.cents(from: signed.digits) else { return .unrecognized }
 
-        // `扫二维码付款-给X`:取"给"后面的收款方。
-        let merchant = lines.lazy.compactMap { line -> String? in
-            guard let groups = TextMatch.captures("^.+?[-－—–]给(.+)$", in: line) else { return nil }
-            return cleanMerchant(groups[1])
-        }.first
+        // 转账页 `扫二维码付款-给X`:取"给"后面的收款方(收款人是表情、头像时识别出来是空的,就没有商户)。
+        // 商户页没有这一行:商户名单独一行在金额上方。
+        let payee = lines.lazy.compactMap { TextMatch.captures("^.+?[-－—–]给(.*)$", in: $0) }.first
+        let merchant: String?
+        if let payee {
+            merchant = cleanMerchant(payee[1])
+        } else {
+            merchant = signed.index > 0 ? cleanMerchant(lines[signed.index - 1]) : nil
+        }
 
         return .payment(PaymentRecord(
             source: .screenText,
@@ -139,7 +143,7 @@ public enum ScreenTextParser {
     // MARK: 商户
 
     private static let decoration = CharacterSet(charactersIn: "•●·・○◦♥★☆■□◆◇—-_:： \t")
-    private static let navigationWords: Set<String> = ["<", "‹", "账单详情", "交易详情", "详情", "账单"]
+    private static let navigationWords: Set<String> = ["<", "‹", "账单详情", "交易详情", "详情", "账单", "全部账单"]
 
     /// 去掉两端的圆点、符号;空串或纯导航文字返回 nil。
     private static func cleanMerchant(_ line: String) -> String? {
