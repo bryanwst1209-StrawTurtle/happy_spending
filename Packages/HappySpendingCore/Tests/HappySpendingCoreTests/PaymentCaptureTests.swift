@@ -172,6 +172,151 @@ struct PaymentCaptureTests {
         #expect(try entries(context).count == 1)
     }
 
+    // MARK: 微信支付消息列表
+
+    private let listNow = makeDate(2026, 10, 15, 16, 25)
+
+    private let wechatList = """
+    16:25 M
+    微信支付
+    收款方
+    交易状态
+    支付成功，对方已收款
+    查看账单详情
+    昨天18:23
+    示例超市
+    使用招商银行信用卡（0000）支付
+    ·147.70
+    账单详情＞
+    13:00
+    收
+    示例小吃
+    使用招商银行信用卡（0000）支付
+    ·55.00
+    账单详情＞
+    我的账单
+    """
+
+    /// 同一笔山姆的账单详情页(支付时间和列表上的"昨天18:23"在同一分钟)。
+    private let wechatMerchantBill = """
+    账单
+    全部账单
+    示例超市
+    -147.70
+    当前状态
+    支付成功
+    支付时间
+    2026年10月14日 18:23:27
+    交易单号
+    4000000000000000000000000000
+    """
+
+    @Test func recordsEveryCompleteCardOnTheList() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+
+        let result = try PaymentCapture.recordScreenText(wechatList, now: listNow, calendar: testCalendar, in: context)
+
+        #expect(result.recorded)
+        #expect(result.message == "已记 2 笔,共 ¥202.70")
+        let saved = try entries(context).sorted { $0.amountInCents > $1.amountInCents }
+        #expect(saved.map(\.amountInCents) == [14770, 5500])
+        #expect(saved.map(\.note) == ["示例超市", "示例小吃"])
+        #expect(saved.map(\.date) == [makeDate(2026, 10, 14), makeDate(2026, 10, 15)])
+        #expect(saved.allSatisfy { $0.autoSource == .screenText })
+    }
+
+    @Test func pressingTheSameListTwiceRecordsNothingNew() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+
+        try PaymentCapture.recordScreenText(wechatList, now: listNow, calendar: testCalendar, in: context)
+        let again = try PaymentCapture.recordScreenText(wechatList, now: listNow, calendar: testCalendar, in: context)
+
+        #expect(!again.recorded)
+        #expect(again.message == "这一屏的 2 笔都记过了")
+        #expect(try entries(context).count == 2)
+    }
+
+    @Test func aPaymentRecordedOnItsDetailPageIsSkippedOnTheList() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+
+        try PaymentCapture.recordScreenText(wechatMerchantBill, now: listNow, calendar: testCalendar, in: context)
+        let list = try PaymentCapture.recordScreenText(wechatList, now: listNow, calendar: testCalendar, in: context)
+
+        #expect(list.recorded)
+        #expect(list.message == "已记 1 笔 ¥55.00,1 笔已记过")
+        #expect(try entries(context).count == 2)
+    }
+
+    @Test func aListWithOneNewCardUsesTheSingleEntryMessage() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let one = "微信支付\n13:00\n示例小吃\n使用零钱支付\n·55.00\n账单详情＞"
+
+        let first = try PaymentCapture.recordScreenText(one, now: listNow, calendar: testCalendar, in: context)
+        let second = try PaymentCapture.recordScreenText(one, now: listNow, calendar: testCalendar, in: context)
+
+        #expect(first.message == "已记 ¥55.00 · 示例小吃")
+        #expect(second.message == "已记过这一笔")
+        #expect(!second.recorded)
+    }
+
+    @Test func twoIdenticalCardsOnOneScreenAreRecordedOnce() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let twins = """
+        微信支付
+        13:00
+        示例小吃
+        使用零钱支付
+        ·55.00
+        账单详情＞
+        示例小吃
+        使用零钱支付
+        ·55.00
+        账单详情＞
+        """
+
+        let result = try PaymentCapture.recordScreenText(twins, now: listNow, calendar: testCalendar, in: context)
+
+        #expect(result.message == "已记 1 笔 ¥55.00,1 笔已记过")
+        #expect(try entries(context).count == 1)
+    }
+
+    @Test func aListWithoutCompleteCardsThrows() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let cutOff = "微信支付\n收款方\n查看账单详情\n昨天18:23\n示例超市\n使用零钱支付"
+
+        #expect(throws: PaymentCaptureError.noCompleteCard) {
+            try PaymentCapture.recordScreenText(cutOff, now: listNow, calendar: testCalendar, in: context)
+        }
+        #expect(try entries(context).isEmpty)
+    }
+
+    @Test func listMessagesForEveryCombination() {
+        func fresh(_ cents: Int, _ message: String = "") -> AutoEntryResult {
+            AutoEntryResult(entryID: UUID(), cents: cents, message: message)
+        }
+        #expect(PaymentCapture.listMessage(fresh: [fresh(8100, "已记 ¥81.00 · 示例小吃")], duplicates: 0)
+                == "已记 ¥81.00 · 示例小吃")
+        #expect(PaymentCapture.listMessage(fresh: [fresh(8100), fresh(5570)], duplicates: 0)
+                == "已记 2 笔,共 ¥136.70")
+        #expect(PaymentCapture.listMessage(fresh: [fresh(8100)], duplicates: 1)
+                == "已记 1 笔 ¥81.00,1 笔已记过")
+        #expect(PaymentCapture.listMessage(fresh: [fresh(8100), fresh(5570)], duplicates: 1)
+                == "已记 2 笔,共 ¥136.70,1 笔已记过")
+        #expect(PaymentCapture.listMessage(fresh: [], duplicates: 1) == "已记过这一笔")
+        #expect(PaymentCapture.listMessage(fresh: [], duplicates: 2) == "这一屏的 2 笔都记过了")
+    }
+
+    @Test func theNoCompleteCardErrorHasAReadableChineseMessage() {
+        #expect(PaymentCaptureError.noCompleteCard.message == "这一屏没有完整的支付记录")
+        #expect(PaymentCaptureError.noCompleteCard.errorDescription == "这一屏没有完整的支付记录")
+    }
+
     @Test func theErrorHasAReadableChineseMessage() {
         #expect(PaymentCaptureError.notPaymentPage.message == "没有识别到支付页面")
         #expect(PaymentCaptureError.notPaymentPage.errorDescription == "没有识别到支付页面")
