@@ -79,6 +79,145 @@ struct PendingCategorizationTests {
         #expect(ids == [pending.id])
     }
 
+    // MARK: 归类
+
+    @Test func assigningAMerchantEntryLearnsAndCategorizesTheSameMerchant() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let c = try makeCategories(context)
+        let entry = add(context, day: 14, merchant: "Luckin Coffee")
+        let sameSpelling = add(context, day: 15, merchant: "Luckin Coffee")
+        let otherSpelling = add(context, day: 16, merchant: " luckin  coffee ")
+        let otherMerchant = add(context, day: 16, merchant: "Luckin Coffee 二店")
+        try context.save()
+
+        let others = try PendingCategorization.assign(entry, to: c.lunch, in: context, now: now)
+
+        #expect(others == 2)
+        #expect(entry.category?.id == c.lunch.id)
+        #expect(sameSpelling.category?.id == c.lunch.id)
+        #expect(otherSpelling.category?.id == c.lunch.id)
+        #expect(otherMerchant.category == nil)
+        #expect(try memories(context).map(\.categoryID) == [c.lunch.id])
+    }
+
+    @Test func backfillLeavesCategorizedAndIncomeEntriesAlone() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let c = try makeCategories(context)
+        let entry = add(context, merchant: "示例小吃")
+        let alreadyFood = add(context, category: c.food, merchant: "示例小吃")
+        let income = add(context, kind: .income, merchant: "示例小吃")
+        try context.save()
+
+        let others = try PendingCategorization.assign(entry, to: c.lunch, in: context, now: now)
+
+        #expect(others == 0)
+        #expect(alreadyFood.category?.id == c.food.id)
+        #expect(income.category == nil)
+    }
+
+    /// 通知记的账没有商户:两笔都没有商户不算"同商户"。
+    @Test func anEntryWithoutAMerchantIsAssignedAlone() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let c = try makeCategories(context)
+        let entry = add(context, source: .notification)
+        let anotherWithout = add(context, source: .notification)
+        try context.save()
+
+        let others = try PendingCategorization.assign(entry, to: c.food, in: context, now: now)
+
+        #expect(others == 0)
+        #expect(entry.category?.id == c.food.id)
+        #expect(anotherWithout.category == nil)
+        #expect(try memories(context).isEmpty)
+    }
+
+    @Test func aManualEntryIsAssignedWithoutLearning() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let c = try makeCategories(context)
+        let manual = add(context, source: nil, merchant: "示例小吃")
+        let auto = add(context, merchant: "示例小吃")
+        try context.save()
+
+        let others = try PendingCategorization.assign(manual, to: c.food, in: context, now: now)
+
+        #expect(others == 0)
+        #expect(manual.category?.id == c.food.id)
+        #expect(auto.category == nil)
+        #expect(try memories(context).isEmpty)
+    }
+
+    @Test func anIncomeCategoryIsNeitherLearnedNorSpread() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let c = try makeCategories(context)
+        let entry = add(context, merchant: "示例小吃")
+        let twin = add(context, merchant: "示例小吃")
+        try context.save()
+
+        let others = try PendingCategorization.assign(entry, to: c.salary, in: context, now: now)
+
+        #expect(others == 0)
+        #expect(entry.category?.id == c.salary.id)
+        #expect(twin.category == nil)
+        #expect(try memories(context).isEmpty)
+    }
+
+    @Test func theNextAutoEntryOfThatMerchantArrivesCategorized() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let c = try makeCategories(context)
+        let entry = add(context, merchant: "示例小吃")
+        try context.save()
+
+        try PendingCategorization.assign(entry, to: c.lunch, in: context, now: now)
+        let result = try AutoEntryRecorder.record(
+            PaymentRecord(source: .screenText, cents: 2500, merchant: "示例小吃", note: "示例小吃"),
+            now: now, calendar: testCalendar, in: context
+        )
+
+        let recorded = try context.fetch(FetchDescriptor<LedgerEntry>()).first { $0.id == result.entryID }
+        #expect(recorded?.category?.id == c.lunch.id)
+    }
+
+    @Test func backfillDoesNothingWithoutACategoryOrMerchant() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let c = try makeCategories(context)
+        let noCategory = add(context, merchant: "示例小吃")
+        let twin = add(context, merchant: "示例小吃")
+        let noMerchant = add(context, category: c.food)
+        let blank = add(context)
+        try context.save()
+
+        #expect(try PendingCategorization.backfill(sameMerchantAs: noCategory, in: context) == 0)
+        #expect(try PendingCategorization.backfill(sameMerchantAs: noMerchant, in: context) == 0)
+        #expect(twin.category == nil)
+        #expect(blank.category == nil)
+    }
+
+    /// 编辑页的路径:改了自动账的分类,`learnFromEdit` 学到了,再 `backfill`。
+    @Test func theEditPathAlsoCategorizesTheSameMerchant() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let c = try makeCategories(context)
+        let entry = add(context, merchant: "示例小吃")
+        let twin = add(context, merchant: "示例小吃")
+        try context.save()
+
+        entry.category = c.food
+        let learned = try MerchantMemory.learnFromEdit(entry: entry, previousCategoryID: nil, in: context)
+        let others = try learned ? PendingCategorization.backfill(sameMerchantAs: entry, in: context) : 0
+        try context.save()
+
+        #expect(learned)
+        #expect(others == 1)
+        #expect(twin.category?.id == c.food.id)
+    }
+
     // MARK: 文字
 
     @Test func theNoticeNamesTheMerchant() {
