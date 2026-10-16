@@ -7,3 +7,14 @@ public enum EntrySource: String, Codable, Sendable {
     /// 微信、支付宝的支付通知("收到通知时"自动化)。
     case notification
 }
+
+extension EntrySource {
+    /// 界面上显示的来源名。
+    public var displayName: String {
+        switch self {
+        case .applePay: "Apple Pay"
+        case .screenText: "屏幕识别"
+        case .notification: "通知"
+        }
+    }
+}
