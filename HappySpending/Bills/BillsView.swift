@@ -12,6 +12,7 @@ struct BillsView: View {
     @State private var editing: LedgerEntry?
     @State private var undo: DeletedEntrySnapshot?
     @State private var errorMessage: String?
+    @State private var categorizing = false
 
     private let calendar = DayStamp.calendar
 
@@ -21,6 +22,8 @@ struct BillsView: View {
         BillsLogic.groupByDay(BillsLogic.search(monthRows, query: query), calendar: calendar)
     }
     private var summary: PeriodSummary { Statistics.summary(monthRows) }
+    /// 所有月份里待归类的笔数。
+    private var pendingCount: Int { PendingCategorization.pending(entries).count }
     private var entriesByID: [UUID: LedgerEntry] {
         Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
@@ -31,6 +34,19 @@ struct BillsView: View {
     var body: some View {
         NavigationStack {
             List {
+                if pendingCount > 0 {
+                    Section {
+                        Button { categorizing = true } label: {
+                            HStack {
+                                Label("待归类 \(pendingCount) 笔", systemImage: "tray.full")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                }
                 Section {
                     PeriodSwitcher(
                         title: monthTitle,
@@ -95,6 +111,9 @@ struct BillsView: View {
             }
             .sheet(item: $editing) { entry in
                 EntryEditSheet(entry: entry, categories: categories, rows: allRows)
+            }
+            .sheet(isPresented: $categorizing) {
+                CategorizeSheet(categories: categories, rows: allRows)
             }
             .overlay(alignment: .bottom) {
                 if let undo {
