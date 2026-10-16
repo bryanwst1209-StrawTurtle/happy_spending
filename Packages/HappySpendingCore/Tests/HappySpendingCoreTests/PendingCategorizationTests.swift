@@ -93,12 +93,13 @@ struct PendingCategorizationTests {
 
         let others = try PendingCategorization.assign(entry, to: c.lunch, in: context, now: now)
 
+        // 选中的这一笔保留二级分类;记忆和同商户一起归的账只到一级分类。
         #expect(others == 2)
         #expect(entry.category?.id == c.lunch.id)
-        #expect(sameSpelling.category?.id == c.lunch.id)
-        #expect(otherSpelling.category?.id == c.lunch.id)
+        #expect(sameSpelling.category?.id == c.food.id)
+        #expect(otherSpelling.category?.id == c.food.id)
         #expect(otherMerchant.category == nil)
-        #expect(try memories(context).map(\.categoryID) == [c.lunch.id])
+        #expect(try memories(context).map(\.categoryID) == [c.food.id])
     }
 
     @Test func backfillLeavesCategorizedAndIncomeEntriesAlone() throws {
@@ -180,7 +181,7 @@ struct PendingCategorizationTests {
         )
 
         let recorded = try context.fetch(FetchDescriptor<LedgerEntry>()).first { $0.id == result.entryID }
-        #expect(recorded?.category?.id == c.lunch.id)
+        #expect(recorded?.category?.id == c.food.id)
     }
 
     @Test func backfillDoesNothingWithoutACategoryOrMerchant() throws {
@@ -208,7 +209,7 @@ struct PendingCategorizationTests {
         let twin = add(context, merchant: "示例小吃")
         try context.save()
 
-        entry.category = c.food
+        entry.category = c.lunch
         let learned = try MerchantMemory.learnFromEdit(entry: entry, previousCategoryID: nil, in: context)
         let others = try learned ? PendingCategorization.backfill(sameMerchantAs: entry, in: context) : 0
         try context.save()

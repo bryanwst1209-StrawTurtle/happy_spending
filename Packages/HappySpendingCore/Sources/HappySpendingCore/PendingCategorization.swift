@@ -26,7 +26,9 @@ public enum PendingCategorization {
             var others = 0
             if entry.isAuto, entry.kind == .expense, category.kind == .expense,
                let merchant = entry.merchant.flatMap(MerchantKey.trimmed) {
-                try MerchantMemory.learn(merchant: merchant, categoryID: category.id, in: context, now: now)
+                try MerchantMemory.learn(
+                    merchant: merchant, categoryID: MerchantMemory.topLevel(of: category).id, in: context, now: now
+                )
                 others = try backfill(sameMerchantAs: entry, in: context)
             }
             try context.save()
@@ -37,8 +39,8 @@ public enum PendingCategorization {
         }
     }
 
-    /// 把与 `entry` 同商户(忽略大小写、多余空白)、还没分类的其他支出设成 `entry` 的分类;不保存。
-    /// `entry` 没有分类、没有商户,或分类不是支出分类时什么也不做。返回改了几笔。
+    /// 把与 `entry` 同商户(忽略大小写、多余空白)、还没分类的其他支出设成 `entry` 分类的**一级分类**
+    /// (和商户记忆一致);不保存。`entry` 没有分类、没有商户,或分类不是支出分类时什么也不做。返回改了几笔。
     @discardableResult
     public static func backfill(sameMerchantAs entry: LedgerEntry, in context: ModelContext) throws -> Int {
         guard let category = entry.category, category.kind == .expense,
@@ -51,7 +53,8 @@ public enum PendingCategorization {
                 && $0.category == nil
                 && $0.merchant.flatMap(MerchantKey.trimmed).map(MerchantKey.normalize) == key
         }
-        for match in matches { match.category = category }
+        let topLevel = MerchantMemory.topLevel(of: category)
+        for match in matches { match.category = topLevel }
         return matches.count
     }
 

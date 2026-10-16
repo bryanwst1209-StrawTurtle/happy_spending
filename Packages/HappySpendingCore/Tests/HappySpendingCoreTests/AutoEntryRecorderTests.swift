@@ -107,17 +107,18 @@ struct AutoEntryRecorderTests {
         #expect(entry.category === food)
     }
 
-    @Test func aRememberedSubcategoryIsUsedAsIs() throws {
+    /// 以前记成二级分类的旧记忆:自动账归到它的一级分类。
+    @Test func anOldSubcategoryMemoryRecordsTheTopLevel() throws {
         let container = try makeTestContainer()
         let context = container.mainContext
-        let (_, lunch) = try makeFood(context)
+        let (food, lunch) = try makeFood(context)
         try MerchantMemory.learn(merchant: "美团", categoryID: lunch.id, in: context)
 
         try AutoEntryRecorder.record(merchant: "美团", amountText: "25", now: now, calendar: testCalendar, in: context)
 
         let entry = try #require(try entries(context).first)
-        #expect(entry.category === lunch)
-        #expect(entry.row.displayCategory == "餐饮 · 午餐")
+        #expect(entry.category === food)
+        #expect(entry.row.displayCategory == "餐饮")
     }
 
     @Test func withoutAMemoryTheEntryIsUncategorized() throws {

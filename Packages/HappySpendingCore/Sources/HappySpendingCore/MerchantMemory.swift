@@ -14,9 +14,10 @@ public enum MerchantKey {
     }
 }
 
-/// "记住我的选择":商户到分类的记忆。
+/// "记住我的选择":商户到分类的记忆。**只记到一级分类**:归到"餐饮 · 午餐"时记住的是"餐饮"。
 public enum MerchantMemory {
-    /// 记忆里该商户对应的分类 ID。分类不存在、已归档、或其一级分类已归档时返回 nil。
+    /// 记忆里该商户对应的一级分类 ID。以前记成二级分类的旧记忆按它的一级分类算;
+    /// 分类不存在、一级分类已归档或不是支出分类时返回 nil。
     public static func categoryID(
         for merchant: String?,
         memory: [MerchantCategory],
@@ -26,12 +27,16 @@ public enum MerchantMemory {
         let key = MerchantKey.normalize(merchant)
         guard !key.isEmpty,
               let remembered = memory.first(where: { $0.merchantKey == key }),
-              let category = categories.first(where: { $0.id == remembered.categoryID }),
-              category.kind == .expense,
-              !category.isArchived,
-              category.parent?.isArchived != true
+              let category = categories.first(where: { $0.id == remembered.categoryID })
         else { return nil }
-        return category.id
+        let top = topLevel(of: category)
+        guard top.kind == .expense, !top.isArchived else { return nil }
+        return top.id
+    }
+
+    /// 二级分类的一级分类;本身就是一级分类时返回自己。
+    public static func topLevel(of category: LedgerCategory) -> LedgerCategory {
+        category.parent ?? category
     }
 
     /// 记下"这个商户 → 这个分类";同一个商户已有记忆时更新,不新增第二条。
@@ -75,8 +80,7 @@ public enum MerchantMemory {
               category.kind == .expense,
               category.id != previousCategoryID
         else { return false }
-        let newCategoryID = category.id
-        try learn(merchant: merchant, categoryID: newCategoryID, in: context, now: now)
+        try learn(merchant: merchant, categoryID: topLevel(of: category).id, in: context, now: now)
         return true
     }
 }

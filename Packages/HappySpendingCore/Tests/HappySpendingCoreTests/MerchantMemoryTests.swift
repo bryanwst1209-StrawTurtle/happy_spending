@@ -96,13 +96,14 @@ struct MerchantMemoryTests {
         #expect(MerchantMemory.categoryID(for: "美团", memory: memory, categories: [food, lunch]) == nil)
     }
 
-    @Test func lookupAcceptsAnActiveSubcategory() throws {
+    /// 商户记忆只到一级分类:以前记成二级分类的旧记忆,读出来是它的一级分类。
+    @Test func lookupTurnsAnOldSubcategoryMemoryIntoItsTopLevel() throws {
         let container = try makeTestContainer()
         let context = container.mainContext
         let (food, lunch, _) = try makeFood(context)
         let memory = [MerchantCategory(merchantKey: "美团", categoryID: lunch.id)]
 
-        #expect(MerchantMemory.categoryID(for: "美团", memory: memory, categories: [food, lunch]) == lunch.id)
+        #expect(MerchantMemory.categoryID(for: "美团", memory: memory, categories: [food, lunch]) == food.id)
     }
 
     @Test func lookupIgnoresACategoryThatNoLongerExists() throws {
@@ -180,6 +181,20 @@ struct MerchantMemoryTests {
         #expect(all.count == 1)
         #expect(all[0].merchantKey == "美团")
         #expect(all[0].categoryID == food.id)
+    }
+
+    @Test func editingAnAutoEntryToASubcategoryRemembersItsTopLevel() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let (food, lunch, _) = try makeFood(context)
+        let entry = autoEntry(context, merchant: "美团", category: nil)
+
+        entry.category = lunch
+        let learned = try MerchantMemory.learnFromEdit(entry: entry, previousCategoryID: nil, in: context)
+
+        #expect(learned)
+        #expect(entry.category?.id == lunch.id)
+        #expect(try memories(context).map(\.categoryID) == [food.id])
     }
 
     @Test func changingAnAutoEntryBetweenTwoCategoriesLearnsTheNewOne() throws {
