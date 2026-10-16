@@ -12,6 +12,8 @@ struct EntryEditSheet: View {
 
     @State private var form: EntryFormState
     @State private var errorMessage: String?
+    /// 同商户一起归好时的提示;点"好"后关闭编辑页。
+    @State private var backfillNotice: String?
 
     init(entry: LedgerEntry, categories: [LedgerCategory], rows: [EntryRow]) {
         self.entry = entry
@@ -51,6 +53,12 @@ struct EntryEditSheet: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+            .alert(backfillNotice ?? "", isPresented: Binding(
+                get: { backfillNotice != nil },
+                set: { if !$0 { backfillNotice = nil } }
+            )) {
+                Button("好") { dismiss() }
+            }
         }
     }
 
@@ -70,12 +78,17 @@ struct EntryEditSheet: View {
         entry.note = form.note.trimmingCharacters(in: .whitespacesAndNewlines)
         entry.category = categories.first { $0.id == form.categoryID }
         do {
-            // 改了自动账的分类就记住"这个商户 → 这个分类"。
-            try MerchantMemory.learnFromEdit(
+            // 改了自动账的分类就记住"这个商户 → 这个分类",并把同商户还没分类的支出一起归好。
+            let learned = try MerchantMemory.learnFromEdit(
                 entry: entry, previousCategoryID: previousCategoryID, in: context
             )
+            let others = try learned ? PendingCategorization.backfill(sameMerchantAs: entry, in: context) : 0
             try context.save()
-            dismiss()
+            if others > 0 {
+                backfillNotice = PendingCategorization.notice(count: others, merchant: entry.merchant)
+            } else {
+                dismiss()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
