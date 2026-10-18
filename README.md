@@ -25,6 +25,9 @@ cd Packages/HappySpendingCore && swift test
 # 生成 Xcode 工程(需要 brew install xcodegen)
 xcodegen generate
 
+# 安装 git 钩子(克隆后运行一次):之后切换分支、合并时会自动重新生成工程
+sh scripts/install-git-hooks.sh
+
 # 编译 App
 xcodebuild -project HappySpending.xcodeproj -scheme HappySpending \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build

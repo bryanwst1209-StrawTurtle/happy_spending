@@ -90,6 +90,9 @@ struct EntryEditSheet: View {
                 dismiss()
             }
         } catch {
+            // 撤回这次的所有改动(这一笔、同商户回填、商户记忆),免得之后被自动保存悄悄写进去。
+            // 表单里填的内容还在,用户可以直接再点保存。
+            context.rollback()
             errorMessage = error.localizedDescription
         }
     }

@@ -1,0 +1,10 @@
+#!/bin/sh
+# 切换分支、合并之后重新生成 Xcode 工程。
+# HappySpending.xcodeproj 由 XcodeGen 按 project.yml 和目录里的文件生成,不在 git 里,
+# 不会跟着分支变;不重新生成就可能引用到当前分支没有的文件,编译失败。
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+if command -v xcodegen >/dev/null 2>&1; then
+  xcodegen generate --quiet || echo "git hook: xcodegen generate 失败,请手动运行" >&2
+else
+  echo "git hook: 没找到 xcodegen,请手动运行 xcodegen generate" >&2
+fi

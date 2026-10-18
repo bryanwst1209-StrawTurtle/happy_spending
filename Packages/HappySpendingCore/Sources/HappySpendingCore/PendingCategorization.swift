@@ -8,7 +8,8 @@ public enum PendingCategorization {
     public static func pending(_ entries: [LedgerEntry]) -> [LedgerEntry] {
         entries
             .filter { $0.kind == .expense && $0.category == nil }
-            .sorted { ($0.date, $0.createdAt) < ($1.date, $1.createdAt) }
+            // 一次记好几笔时日期和记账时间都相同,再按 id 排,保证每次打开顺序一样。
+            .sorted { ($0.date, $0.createdAt, $0.id.uuidString) < ($1.date, $1.createdAt, $1.id.uuidString) }
     }
 
     /// 把一笔账归到分类。是有商户的自动支出、且归到支出分类时,记住"商户 → 分类",

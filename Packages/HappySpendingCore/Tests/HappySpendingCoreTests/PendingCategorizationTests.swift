@@ -65,6 +65,22 @@ struct PendingCategorizationTests {
         #expect(order == [lastMonth.id, early.id, late.id])
     }
 
+    /// 微信消息列表一次记好几笔:日期和记账时间都相同。顺序不能取决于传进来的先后。
+    @Test func entriesRecordedAtTheSameMomentKeepAStableOrder() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let first = add(context)
+        let second = add(context)
+        first.id = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+        second.id = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+
+        let forward = PendingCategorization.pending([first, second]).map(\.id)
+        let backward = PendingCategorization.pending([second, first]).map(\.id)
+
+        #expect(forward == [first.id, second.id])
+        #expect(backward == forward)
+    }
+
     @Test func pendingSkipsIncomeAndCategorizedEntries() throws {
         let container = try makeTestContainer()
         let context = container.mainContext
