@@ -1,4 +1,13 @@
 #!/bin/sh
+# 切换分支后重新生成 Xcode 工程:HappySpending.xcodeproj 由 XcodeGen 生成、不在 git 里,
+# 不会跟着分支变,不重新生成就可能引用到当前分支没有的文件而编译失败。
+# 这个文件会被复制进 .git/hooks(不是链接),所以切到没有 scripts/ 目录的旧分支也照样生效。
 # 第 3 个参数为 1 表示切换的是分支;只检出单个文件时不用重新生成。
 [ "$3" = "1" ] || exit 0
-exec "$(git rev-parse --show-toplevel)/scripts/git-hooks/regenerate-project"
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+cd "$(git rev-parse --show-toplevel)" || exit 0
+if command -v xcodegen >/dev/null 2>&1; then
+  xcodegen generate --quiet || echo "git hook: xcodegen generate 失败,请手动运行" >&2
+else
+  echo "git hook: 没找到 xcodegen,请手动运行 xcodegen generate" >&2
+fi

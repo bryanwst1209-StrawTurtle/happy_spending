@@ -1,2 +1,9 @@
 #!/bin/sh
-exec "$(git rev-parse --show-toplevel)/scripts/git-hooks/regenerate-project"
+# 合并之后重新生成 Xcode 工程(合并可能带来新文件)。说明见 post-checkout。
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+cd "$(git rev-parse --show-toplevel)" || exit 0
+if command -v xcodegen >/dev/null 2>&1; then
+  xcodegen generate --quiet || echo "git hook: xcodegen generate 失败,请手动运行" >&2
+else
+  echo "git hook: 没找到 xcodegen,请手动运行 xcodegen generate" >&2
+fi
