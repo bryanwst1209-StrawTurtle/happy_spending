@@ -3,10 +3,11 @@ import SwiftData
 import HappySpendingCore
 
 struct RootTabView: View {
-    @Query private var entries: [LedgerEntry]
+    /// 只查没有分类的账,再挑出支出,作为账单页签的角标。
+    @Query(LedgerQueries.uncategorized()) private var uncategorized: [LedgerEntry]
 
     /// 账单页签的角标:待归类的笔数,为 0 时不显示。
-    private var pendingCount: Int { PendingCategorization.pending(entries).count }
+    private var pendingCount: Int { PendingCategorization.pending(uncategorized).count }
 
     var body: some View {
         TabView {

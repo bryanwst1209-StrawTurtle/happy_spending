@@ -2,118 +2,99 @@ import SwiftUI
 import SwiftData
 import HappySpendingCore
 
+/// 账单页的搜索范围。
+enum BillsSearchScope: Hashable {
+    case month, all
+}
+
 struct BillsView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \LedgerEntry.date, order: .reverse) private var entries: [LedgerEntry]
     @Query(sort: \LedgerCategory.sortOrder) private var categories: [LedgerCategory]
+    @Query(LedgerQueries.uncategorized()) private var uncategorized: [LedgerEntry]
+    @Query(LedgerQueries.recent()) private var recent: [LedgerEntry]
+    @Query(LedgerQueries.earliest()) private var earliest: [LedgerEntry]
 
     @State private var month = DayStamp.stamp(.now)
     @State private var query = ""
+    @State private var scope = BillsSearchScope.month
     @State private var editing: LedgerEntry?
     @State private var undo: DeletedEntrySnapshot?
     @State private var errorMessage: String?
     @State private var categorizing = false
+    @State private var pickingMonth = false
+    /// 搜"全部"的结果在编辑、删除、撤销后要重查;每次改动加一。
+    @State private var searchRevision = 0
 
     private let calendar = DayStamp.calendar
 
-    private var allRows: [EntryRow] { entries.map(\.row) }
-    private var monthRows: [EntryRow] { Period.month(month).filter(allRows, calendar: calendar) }
-    private var groups: [DayGroup] {
-        BillsLogic.groupByDay(BillsLogic.search(monthRows, query: query), calendar: calendar)
-    }
-    private var summary: PeriodSummary { Statistics.summary(monthRows) }
+    private var now: Date { DayStamp.stamp(.now) }
     /// 所有月份里待归类的笔数。
-    private var pendingCount: Int { PendingCategorization.pending(entries).count }
-    private var entriesByID: [UUID: LedgerEntry] {
-        Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-    }
-    private var monthTitle: String {
-        BillsLogic.monthTitle(month, calendar: calendar)
+    private var pendingCount: Int { PendingCategorization.pending(uncategorized).count }
+    /// 编辑页、归类面板算"常用分类"用的最近 300 笔。
+    private var recentRows: [EntryRow] { recent.map(\.row) }
+    private var isCurrentMonth: Bool { HistoryRange.isCurrent(.month(month), now: now, calendar: calendar) }
+    private var isSearchingAll: Bool {
+        scope == .all && !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
         NavigationStack {
-            List {
-                if pendingCount > 0 {
-                    Section {
-                        Button { categorizing = true } label: {
-                            HStack {
-                                Label("待归类 \(pendingCount) 笔", systemImage: "tray.full")
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                    }
-                }
-                Section {
-                    PeriodSwitcher(
-                        title: monthTitle,
-                        onPrevious: { shiftMonth(-1) },
-                        onNext: { shiftMonth(1) }
+            Group {
+                if isSearchingAll {
+                    HistorySearchList(
+                        query: query,
+                        revision: searchRevision,
+                        pendingCount: pendingCount,
+                        onCategorize: { categorizing = true },
+                        onEdit: { editing = $0 },
+                        onDelete: delete
                     )
-                    .listRowBackground(Color.clear)
-                    summaryRow
-                }
-                ForEach(groups) { group in
-                    Section {
-                        ForEach(group.rows) { row in
-                            EntryRowView(row: row)
-                                .onTapGesture { editing = entriesByID[row.id] }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button("删除", role: .destructive) {
-                                        if let entry = entriesByID[row.id] { delete(entry) }
-                                    }
-                                }
-                        }
-                    } header: {
-                        HStack {
-                            Text(BillsLogic.dayTitle(group.day, calendar: calendar))
-                            Spacer()
-                            Text(daySubtotal(group)).monospacedDigit()
-                        }
-                    }
-                }
-            }
-            .overlay {
-                if monthRows.isEmpty {
-                    ContentUnavailableView("本月还没有账单", systemImage: "tray")
-                } else if groups.isEmpty {
-                    ContentUnavailableView.search(text: query)
+                } else {
+                    MonthBillsList(
+                        month: month,
+                        query: query,
+                        pendingCount: pendingCount,
+                        isCurrentMonth: isCurrentMonth,
+                        onCategorize: { categorizing = true },
+                        onPrevious: { shiftMonth(-1) },
+                        onNext: { shiftMonth(1) },
+                        onPickMonth: { pickingMonth = true },
+                        onBackToCurrent: { month = now },
+                        onEdit: { editing = $0 },
+                        onDelete: delete
+                    )
                 }
             }
             .navigationTitle("账单")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $query, prompt: "搜索备注或分类")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        ShareLink(
-                            item: CSVFile(
-                                name: CSVExporter.fileName(for: .month(month), calendar: calendar),
-                                rows: monthRows
-                            ),
-                            preview: SharePreview("导出 \(monthTitle)")
-                        ) { Label("导出当月 CSV", systemImage: "calendar") }
-                        ShareLink(
-                            item: CSVFile(
-                                name: CSVExporter.fileName(for: nil, calendar: calendar),
-                                rows: allRows
-                            ),
-                            preview: SharePreview("导出全部账单")
-                        ) { Label("导出全部 CSV", systemImage: "tray.full") }
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
+            .searchable(text: $query, prompt: "搜索备注、分类或金额")
+            // "本月 / 全部"自己画在搜索框下方,只在输入了搜索词时出现。
+            // 不用系统的 `.searchScopes`:iOS 26 上它在搜索框下方留一条看不见的范围栏,
+            // 即使不在搜索也会挡住下面月份切换按钮的点击。
+            .safeAreaInset(edge: .top) {
+                if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Picker("搜索范围", selection: $scope) {
+                        Text("本月").tag(BillsSearchScope.month)
+                        Text("全部").tag(BillsSearchScope.all)
                     }
-                    .disabled(entries.isEmpty)
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
                 }
             }
-            .sheet(item: $editing) { entry in
-                EntryEditSheet(entry: entry, categories: categories, rows: allRows)
+            .sheet(item: $editing, onDismiss: { searchRevision += 1 }) { entry in
+                EntryEditSheet(entry: entry, categories: categories, rows: recentRows)
             }
             .sheet(isPresented: $categorizing) {
-                CategorizeSheet(categories: categories, rows: allRows)
+                CategorizeSheet(categories: categories, rows: recentRows)
+            }
+            .sheet(isPresented: $pickingMonth) {
+                MonthPickerSheet(
+                    current: month,
+                    years: HistoryRange.years(earliest: earliest.first?.date, now: now, calendar: calendar),
+                    yearOnly: false,
+                    now: now
+                ) { month = $0 }
             }
             .overlay(alignment: .bottom) {
                 if let undo {
@@ -133,30 +114,9 @@ struct BillsView: View {
         }
     }
 
-    private var summaryRow: some View {
-        HStack {
-            summaryCell("收入", summary.incomeCents, .green)
-            summaryCell("支出", summary.expenseCents, .primary)
-            summaryCell("结余", summary.balanceCents, .primary)
-        }
-    }
-
-    private func summaryCell(_ title: String, _ cents: Int, _ color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(Money.display(cents)).font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(color)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func daySubtotal(_ group: DayGroup) -> String {
-        var parts: [String] = []
-        if group.expenseCents > 0 { parts.append("支出 " + Money.display(group.expenseCents)) }
-        if group.incomeCents > 0 { parts.append("收入 " + Money.display(group.incomeCents)) }
-        return parts.joined(separator: "  ")
-    }
-
     private func shiftMonth(_ delta: Int) {
+        // 已经是当前月时 › 置灰;这里再拦一次,不翻到未来。
+        guard delta < 0 || !isCurrentMonth else { return }
         month = calendar.date(byAdding: .month, value: delta, to: month) ?? month
     }
 
@@ -164,6 +124,7 @@ struct BillsView: View {
         let snapshot = DeletedEntrySnapshot(entry)
         context.delete(entry)
         guard persist() else { return }
+        searchRevision += 1
         withAnimation { undo = snapshot }
         Task {
             try? await Task.sleep(for: .seconds(4))
@@ -173,10 +134,13 @@ struct BillsView: View {
 
     private func restore(_ snapshot: DeletedEntrySnapshot) {
         // 连点两次"撤销"不能造出两笔同 id 的账单。
-        guard undo == snapshot, !entries.contains(where: { $0.id == snapshot.id }) else { return }
+        guard undo == snapshot,
+              (try? context.fetchCount(LedgerQueries.entry(id: snapshot.id))) == 0
+        else { return }
         let entry = snapshot.makeEntry(categories: categories)
         context.insert(entry)
         _ = persist()
+        searchRevision += 1
         withAnimation { undo = nil }
     }
 

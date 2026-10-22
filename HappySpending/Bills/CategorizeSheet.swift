@@ -6,7 +6,8 @@ import HappySpendingCore
 struct CategorizeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    @Query private var entries: [LedgerEntry]
+    /// 只查没有分类的账;队列再从中挑出支出并排序。
+    @Query(LedgerQueries.uncategorized()) private var entries: [LedgerEntry]
 
     let categories: [LedgerCategory]
     let rows: [EntryRow]

@@ -5,7 +5,8 @@ import HappySpendingCore
 struct RecordView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \LedgerCategory.sortOrder) private var categories: [LedgerCategory]
-    @Query(sort: \LedgerEntry.createdAt, order: .reverse) private var entries: [LedgerEntry]
+    /// 只查最近 300 笔:常用分类和"上次用过的分类"都只看最近的账。
+    @Query(LedgerQueries.recent()) private var entries: [LedgerEntry]
 
     @Environment(\.scenePhase) private var scenePhase
 
