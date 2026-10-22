@@ -43,13 +43,16 @@ public enum BillsLogic {
         return formatter.string(from: anchor)
     }
 
-    /// 在备注、一级分类名、二级分类名里做不区分大小写的包含匹配。空查询返回全部。
+    /// 在备注、一级分类名、二级分类名里做不区分大小写的包含匹配;搜索词能当金额时也按金额匹配
+    /// (规则见 `AmountQuery`)。空查询返回全部。
     public static func search(_ rows: [EntryRow], query: String) -> [EntryRow] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return rows }
+        let amount = AmountQuery.range(for: query)
         return rows.filter { row in
             [row.note, row.topCategoryName, row.subCategoryName ?? ""]
                 .contains { $0.localizedCaseInsensitiveContains(query) }
+                || amount?.contains(row.cents) == true
         }
     }
 
