@@ -29,4 +29,15 @@ struct HistoryRangeTests {
         #expect(!HistoryRange.isCurrent(.month(makeDate(2026, 9, 15)), now: october1, calendar: testCalendar))
         #expect(!HistoryRange.isCurrent(.year(2025), now: makeDate(2026, 1, 1), calendar: testCalendar))
     }
+
+    /// 年视图从 2025年11月按 › 到 2026 年:不能落在 2026年11月(未来),切回月视图会停在未来月份。
+    @Test func shiftingNeverLandsInTheFuture() {
+        let now = makeDate(2026, 10, 22)
+        let fromLastNovember = HistoryRange.shift(makeDate(2025, 11, 1), by: 1, .year, now: now, calendar: testCalendar)
+        #expect(fromLastNovember == makeDate(2026, 10, 22))
+        #expect(HistoryRange.isCurrent(.month(fromLastNovember), now: now, calendar: testCalendar))
+
+        let back = HistoryRange.shift(makeDate(2026, 10, 1), by: -1, .month, now: now, calendar: testCalendar)
+        #expect(back == makeDate(2026, 9, 1))
+    }
 }

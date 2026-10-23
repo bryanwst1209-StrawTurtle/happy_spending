@@ -55,14 +55,14 @@ public enum HistorySearch {
         )))
 
         for category in try context.fetch(FetchDescriptor<LedgerCategory>())
-        where category.name.localizedCaseInsensitiveContains(text) {
+        where TextMatch.looselyContains(category.name, text) {
             add(category.entries)
             if category.parent == nil {
                 for child in category.children { add(child.entries) }
             }
         }
 
-        if Uncategorized.name.localizedCaseInsensitiveContains(text) {
+        if TextMatch.looselyContains(Uncategorized.name, text) {
             add(try context.fetch(LedgerQueries.uncategorized()))
         }
 

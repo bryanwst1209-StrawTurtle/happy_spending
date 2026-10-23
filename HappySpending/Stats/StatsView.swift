@@ -72,7 +72,7 @@ struct StatsView: View {
         // 已经是当前月(或今年)时 › 置灰;这里再拦一次,不翻到未来。
         guard delta < 0 || !isCurrent else { return }
         let component: Calendar.Component = scope == .month ? .month : .year
-        anchor = calendar.date(byAdding: component, value: delta, to: anchor) ?? anchor
+        anchor = HistoryRange.shift(anchor, by: delta, component, now: now, calendar: calendar)
     }
 }
 

@@ -15,6 +15,15 @@ public enum HistoryRange {
         return 1...(year == components.year ? (components.month ?? 12) : 12)
     }
 
+    /// 按 ‹ › 前后翻一个月(或一年),不会翻到 `now` 之后:年视图从去年 11 月往后翻一年,
+    /// 停在现在而不是明年 11 月,切回月视图时就不会停在未来月份。
+    public static func shift(
+        _ anchor: Date, by delta: Int, _ component: Calendar.Component, now: Date, calendar: Calendar
+    ) -> Date {
+        let moved = calendar.date(byAdding: component, value: delta, to: anchor) ?? anchor
+        return min(moved, now)
+    }
+
     /// `period` 是否就是现在所在的月(或年),用于置灰 › 和显示"回到本月"。
     /// 左闭右开:`DateInterval.contains` 包含终点,不能直接用。
     public static func isCurrent(_ period: Period, now: Date, calendar: Calendar) -> Bool {

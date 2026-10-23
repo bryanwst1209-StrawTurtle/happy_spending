@@ -117,7 +117,7 @@ struct BillsView: View {
     private func shiftMonth(_ delta: Int) {
         // 已经是当前月时 › 置灰;这里再拦一次,不翻到未来。
         guard delta < 0 || !isCurrentMonth else { return }
-        month = calendar.date(byAdding: .month, value: delta, to: month) ?? month
+        month = HistoryRange.shift(month, by: delta, .month, now: now, calendar: calendar)
     }
 
     private func delete(_ entry: LedgerEntry) {

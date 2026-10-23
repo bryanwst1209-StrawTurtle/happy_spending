@@ -48,7 +48,8 @@ public enum PendingCategorization {
               let merchant = entry.merchant.flatMap(MerchantKey.trimmed)
         else { return 0 }
         let key = MerchantKey.normalize(merchant)
-        let matches = try context.fetch(FetchDescriptor<LedgerEntry>()).filter {
+        // 只查没有分类的账再筛同商户,不读全部账单(用 5 年时每次归类要多花约 0.26 秒)。
+        let matches = try context.fetch(LedgerQueries.uncategorized()).filter {
             $0.id != entry.id
                 && $0.kind == .expense
                 && $0.category == nil

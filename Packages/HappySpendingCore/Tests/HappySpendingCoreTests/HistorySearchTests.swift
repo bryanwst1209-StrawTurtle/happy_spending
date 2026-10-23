@@ -33,6 +33,13 @@ struct HistorySearchTests {
         )
     }
 
+    /// "本月"和"全部"用同一套匹配:不区分大小写、全角半角、重音(自动记账的备注里常有全角字母)。
+    @Test func monthSearchIgnoresWidthAndAccents() {
+        let rows = [row(100, note: "ＡＢＣ店"), row(200, note: "Café"), row(300, note: "别的")]
+        #expect(BillsLogic.search(rows, query: "abc").map(\.cents) == [100])
+        #expect(BillsLogic.search(rows, query: "cafe").map(\.cents) == [200])
+    }
+
     @Test func monthSearchAlsoMatchesAmounts() {
         let rows = [row(14770), row(1470), row(147000), row(500, note: "147 号店")]
         #expect(BillsLogic.search(rows, query: "147").map(\.cents) == [14770, 500])
