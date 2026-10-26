@@ -24,7 +24,7 @@ struct StatsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                if appearance.image != nil {
+                if appearance.isCustom {
                     AppBackground()
                 } else {
                     StatsBackground().ignoresSafeArea()

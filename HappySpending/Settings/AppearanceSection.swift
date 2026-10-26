@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 import HappySpendingCore
 
-/// 设置页的"外观":选背景图、调浓淡、移除。
+/// 设置页的"外观":默认 / 预设色盘 / 相册图片,浓淡,删除图片。
 struct AppearanceSection: View {
     @Environment(AppearanceModel.self) private var appearance
 
@@ -10,26 +10,42 @@ struct AppearanceSection: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
 
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 5)
+
     var body: some View {
         @Bindable var appearance = appearance
         Section {
-            PhotosPicker(selection: $pick, matching: .images) {
-                HStack {
-                    Label(appearance.image == nil ? "选择背景图" : "更换背景图", systemImage: "photo")
-                    Spacer()
-                    if isProcessing {
-                        ProgressView()
-                    } else if let image = appearance.image {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 36, height: 54)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+            LazyVGrid(columns: columns, spacing: 12) {
+                swatch("默认", choice: .system) {
+                    Color(.systemBackground)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.3)))
+                }
+                ForEach(BackgroundPreset.all) { preset in
+                    swatch(preset.name, choice: .preset(preset.id)) { PresetFill(preset: preset) }
+                }
+                if let image = appearance.image {
+                    swatch("我的图片", choice: .image) {
+                        Image(uiImage: image).resizable().scaledToFill()
                     }
                 }
+                PhotosPicker(selection: $pick, matching: .images) {
+                    tile(label: "从相册选") {
+                        ZStack {
+                            Color.secondary.opacity(0.12)
+                            if isProcessing {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "photo.badge.plus").font(.title3)
+                            }
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
             }
+            .padding(.vertical, 6)
             .appRowBackground()
-            if appearance.image != nil {
+
+            if appearance.effectiveChoice != .system {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text("浓淡")
@@ -41,9 +57,11 @@ struct AppearanceSection: View {
                     Slider(value: $appearance.opacity, in: 0.1...1, step: 0.05)
                 }
                 .appRowBackground()
-                Button("移除背景图", role: .destructive) {
+            }
+            if appearance.image != nil {
+                Button("删除这张图片", role: .destructive) {
                     do {
-                        try appearance.removeImage()
+                        try appearance.deleteImage()
                     } catch {
                         errorMessage = error.localizedDescription
                     }
@@ -53,7 +71,7 @@ struct AppearanceSection: View {
         } header: {
             Text("外观")
         } footer: {
-            Text("四个页面共用这张背景图。浓淡越低,图片越淡,文字越清楚。")
+            Text("四个页面共用这个背景。浓淡越低,背景越淡,文字越清楚。")
         }
         .onChange(of: pick) { _, item in
             guard let item else { return }
@@ -67,6 +85,47 @@ struct AppearanceSection: View {
         } message: {
             Text(errorMessage ?? "")
         }
+    }
+
+    /// 可点选的色块;当前选中的带勾。
+    private func swatch(_ label: String, choice: BackgroundChoice, @ViewBuilder fill: () -> some View) -> some View {
+        let selected = appearance.effectiveChoice == choice
+        return Button {
+            appearance.choice = choice
+        } label: {
+            tile(label: label) {
+                fill()
+                    .overlay(alignment: .bottomTrailing) {
+                        if selected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.callout)
+                                .foregroundStyle(.white, Color.accentColor)
+                                .padding(4)
+                        }
+                    }
+            }
+            .overlay(alignment: .top) {
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.accentColor, lineWidth: selected ? 2.5 : 0)
+                    .frame(height: 64)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func tile(label: String, @ViewBuilder fill: () -> some View) -> some View {
+        VStack(spacing: 4) {
+            fill()
+                .frame(height: 64)
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+        }
+        .contentShape(Rectangle())
     }
 
     private func load(_ item: PhotosPickerItem) async {
