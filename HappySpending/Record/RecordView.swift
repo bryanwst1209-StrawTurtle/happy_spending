@@ -36,6 +36,9 @@ struct RecordView: View {
             onSave: save
         )
         .padding(.horizontal)
+        // iOS 26 的页签栏悬浮在页面上,不留空间的话最下面一排按键会被它盖住一截。
+        .padding(.bottom, 16)
+        .background { AppBackground() }
         .overlay(alignment: .top) {
             if showToast {
                 ToastView(text: "已记一笔")

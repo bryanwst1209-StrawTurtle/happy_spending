@@ -3,6 +3,7 @@ import SwiftData
 import HappySpendingCore
 
 struct StatsView: View {
+    @Environment(AppearanceModel.self) private var appearance
     @Query(LedgerQueries.earliest()) private var earliest: [LedgerEntry]
     @State private var scope: StatsScope = .month
     @State private var anchor = DayStamp.stamp(.now)
@@ -23,7 +24,11 @@ struct StatsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                StatsBackground().ignoresSafeArea()
+                if appearance.image != nil {
+                    AppBackground()
+                } else {
+                    StatsBackground().ignoresSafeArea()
+                }
                 ScrollView {
                     VStack(spacing: 20) {
                         controls

@@ -50,8 +50,11 @@ struct EntryFormView: View {
             .buttonStyle(.glass)
             .controlSize(.small)
 
+            // 半透明磨砂底:设了背景图时能透出来,不再是一块纯白 / 纯黑。
             TextField("备注(可选)", text: $form.note)
-                .textFieldStyle(.roundedBorder)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
 
             NumericKeypad(
                 saveTitle: saveTitle,

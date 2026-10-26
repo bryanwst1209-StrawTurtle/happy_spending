@@ -75,11 +75,13 @@ struct MonthBillsList: View {
                 )
                 .listRowBackground(Color.clear)
                 summaryRow
+                    .appRowBackground()
             }
             ForEach(groups) { group in
                 Section {
                     ForEach(group.rows) { row in
                         EntryRowView(row: row)
+                            .appRowBackground()
                             .onTapGesture { if let entry = entriesByID[row.id] { onEdit(entry) } }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button("删除", role: .destructive) {
@@ -96,6 +98,7 @@ struct MonthBillsList: View {
                 }
             }
         }
+        .appListBackground()
         .overlay {
             // 占位不接收点击,免得挡住上面的 ‹ › 和标题。
             Group {

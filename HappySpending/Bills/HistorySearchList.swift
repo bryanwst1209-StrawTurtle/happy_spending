@@ -35,12 +35,14 @@ struct HistorySearchList: View {
                     Text("找到 \(results.count) 笔 · 支出 \(Money.display(Statistics.summary(rows).expenseCents))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .appRowBackground()
                 }
             }
             ForEach(groups) { group in
                 Section {
                     ForEach(group.rows) { row in
                         EntryRowView(row: row, showsDate: true)
+                            .appRowBackground()
                             .onTapGesture { if let entry = resultsByID[row.id] { onEdit(entry) } }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button("删除", role: .destructive) {
@@ -60,6 +62,7 @@ struct HistorySearchList: View {
                 }
             }
         }
+        .appListBackground()
         .overlay {
             if searched && results.isEmpty {
                 ContentUnavailableView.search(text: query).allowsHitTesting(false)

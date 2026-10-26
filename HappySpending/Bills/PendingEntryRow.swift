@@ -16,6 +16,7 @@ struct PendingEntryRow: View {
                         .foregroundStyle(.tertiary)
                 }
             }
+            .appRowBackground()
         }
     }
 }
