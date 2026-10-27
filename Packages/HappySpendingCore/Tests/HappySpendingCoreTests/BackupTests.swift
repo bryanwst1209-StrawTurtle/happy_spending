@@ -246,6 +246,19 @@ struct BackupTests {
         #expect(try snapshot(context) == before)
     }
 
+    // MARK: 恢复后的提示
+
+    @Test func theRestoreMessageTellsWhatHappened() {
+        let ok = RestoreResult(entryCount: 12, orphanedEntryCount: 0)
+        let orphans = RestoreResult(entryCount: 12, orphanedEntryCount: 2)
+        #expect(Backup.restoreMessage(ok, appearanceRestored: true) == "已恢复 12 笔账")
+        #expect(Backup.restoreMessage(orphans, appearanceRestored: true)
+                == "已恢复 12 笔账\n有 2 笔账的分类已不存在,已归为未分类")
+        /// 数据已经换好了,只是背景没换上:不能说"数据未改动"。
+        #expect(Backup.restoreMessage(ok, appearanceRestored: false)
+                == "已恢复 12 笔账\n背景设置没能恢复,可以在外观里重新选")
+    }
+
     // MARK: 预览
 
     @Test func thePreviewSummarizesTheBackup() throws {

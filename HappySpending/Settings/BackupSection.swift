@@ -67,7 +67,9 @@ struct BackupSection: View {
                 .appRowBackground()
             }
 
-            if !backup.isAutoBackupOn, let local = backup.localPreRestoreBackup {
+            // 只要本地有恢复前备份就给出导出入口(文件夹失效时它会落在本地)。
+            if let local = backup.localPreRestoreBackup,
+               FileManager.default.fileExists(atPath: local.path(percentEncoded: false)) {
                 ShareLink(item: local) {
                     Label("导出恢复前备份", systemImage: "clock.badge.exclamationmark")
                 }
@@ -143,12 +145,7 @@ struct BackupSection: View {
 
     private func restore(_ document: BackupDocument) {
         do {
-            let result = try backup.restore(document, context: context, appearance: appearance)
-            var text = "已恢复 \(result.entryCount) 笔账"
-            if result.orphanedEntryCount > 0 {
-                text += "\n有 \(result.orphanedEntryCount) 笔账的分类已不存在,已归为未分类"
-            }
-            message = text
+            message = try backup.restore(document, context: context, appearance: appearance)
         } catch {
             message = "恢复失败,数据未改动"
         }

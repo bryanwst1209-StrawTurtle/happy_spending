@@ -257,6 +257,20 @@ public enum Backup {
         }
     }
 
+    // MARK: 恢复后的提示
+
+    /// 恢复完成后给用户看的一句话。外观(背景)没换上不算恢复失败:数据已经替换好了。
+    public static func restoreMessage(_ result: RestoreResult, appearanceRestored: Bool) -> String {
+        var lines = ["已恢复 \(result.entryCount) 笔账"]
+        if result.orphanedEntryCount > 0 {
+            lines.append("有 \(result.orphanedEntryCount) 笔账的分类已不存在,已归为未分类")
+        }
+        if !appearanceRestored {
+            lines.append("背景设置没能恢复,可以在外观里重新选")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     // MARK: 预览
 
     public static func preview(of document: BackupDocument) -> BackupPreview {

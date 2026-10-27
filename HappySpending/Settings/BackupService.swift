@@ -51,7 +51,10 @@ final class BackupService {
     }
 
     func needsReminder(hasEntries: Bool, now: Date = .now) -> Bool {
-        BackupFiles.needsReminder(autoBackupOn: isAutoBackupOn, lastExport: lastExport, hasEntries: hasEntries, now: now)
+        BackupFiles.needsReminder(
+            autoBackupOn: isAutoBackupOn, lastExport: lastExport, hasEntries: hasEntries, now: now,
+            lastAutoBackup: lastAutoBackup, autoBackupFailing: lastError != nil
+        )
     }
 
     // MARK: 导出
@@ -151,24 +154,34 @@ final class BackupService {
     }
 
     /// 先存恢复前备份(失败就停下,什么都不动),再整体替换,最后换上备份里的外观。
+    /// 返回给用户看的结果文字;外观没换上不算失败(数据已经替换好了)。
     func restore(
         _ document: BackupDocument, context: ModelContext, appearance: AppearanceModel, now: Date = .now
-    ) throws -> RestoreResult {
+    ) throws -> String {
         let current = try Backup.export(from: context, appearance: appearance.backupAppearance, now: now)
-        let name = BackupFiles.preRestoreName(at: now, calendar: .current)
-        if isAutoBackupOn, let folder = try? resolveFolder() {
-            try Self.write(current, named: name, into: folder, rotate: false)
-        } else {
-            let directory = Self.localDirectory
-            try? FileManager.default.removeItem(at: directory)
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let url = directory.appending(path: name)
-            try current.write(to: url, options: .atomic)
-            localPreRestoreBackup = url
-        }
+        try savePreRestoreBackup(current, now: now)
         let result = try Backup.replace(with: document, in: context)
-        try appearance.apply(document.appearance)
-        return result
+        let appearanceRestored = (try? appearance.apply(document.appearance)) != nil
+        return Backup.restoreMessage(result, appearanceRestored: appearanceRestored)
+    }
+
+    /// 恢复前备份:优先写进自动备份文件夹;文件夹失效、写不进去时退回 app 自己的目录(那里保留最近 3 份),
+    /// 不会因为文件夹坏了就恢复不了。
+    private func savePreRestoreBackup(_ data: Data, now: Date) throws {
+        let name = BackupFiles.preRestoreName(at: now, calendar: .current)
+        if isAutoBackupOn, let folder = try? resolveFolder(),
+           (try? Self.write(data, named: name, into: folder, rotate: false)) != nil {
+            return
+        }
+        let directory = Self.localDirectory
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appending(path: name)
+        try data.write(to: url, options: .atomic)
+        localPreRestoreBackup = url
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path(percentEncoded: false))) ?? []
+        for old in BackupFiles.preRestoreBackupsToDelete(names) {
+            try? FileManager.default.removeItem(at: directory.appending(path: old))
+        }
     }
 }
 
