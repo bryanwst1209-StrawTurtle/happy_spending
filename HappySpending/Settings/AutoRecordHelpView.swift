@@ -19,6 +19,12 @@ struct AutoRecordHelpView: View {
             }
 
             Section {
+                if let url = ShortcutLinks.screenText {
+                    AddShortcutButton(title: "一键添加屏幕识别快捷指令", url: url)
+                    Text("添加后到 设置 → 操作按钮(或 辅助功能 → 触控 → 轻点背面)里选它,然后看下面第 4 步怎么用。也可以按下面的步骤自己搭。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 step(1, "在“快捷指令”里新建一个普通快捷指令(不是自动化)。")
                 step(2, "依次添加操作:“拍摄屏幕截图”→“提取图像中的文字”→“记一笔(屏幕识别)”,把“屏幕文字”参数设成上一步提取出的文字。")
                 step(3, "把它设成操作按钮(设置 → 操作按钮 → 快捷指令),或轻点背面(设置 → 辅助功能 → 触控 → 轻点背面)。")
@@ -31,6 +37,17 @@ struct AutoRecordHelpView: View {
             }
 
             Section {
+                if let url = ShortcutLinks.alipayNotification {
+                    AddShortcutButton(title: "一键添加支付宝通知自动化", url: url)
+                }
+                if let url = ShortcutLinks.wechatNotification {
+                    AddShortcutButton(title: "一键添加微信通知自动化", url: url)
+                }
+                if ShortcutLinks.alipayNotification != nil || ShortcutLinks.wechatNotification != nil {
+                    Text("添加的自动化默认是关闭的:到 快捷指令 → 自动化 里点开它,打开开关并选“立即运行”。也可以按下面的步骤自己搭。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 step(1, "在“快捷指令”的“自动化”里新建个人自动化,选择“通知”,来自“支付宝”,加筛选:标题 包含 交易提醒。")
                 step(2, "再建一个,来自“微信”,加筛选:标题 包含 微信支付。")
                 step(3, "运行方式选“立即运行”。添加操作“记一笔(通知)”,把“通知标题”和“通知正文”接触发器给出的通知标题和通知正文。")
