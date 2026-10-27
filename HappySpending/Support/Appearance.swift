@@ -46,6 +46,24 @@ final class AppearanceModel {
         choice = .image
     }
 
+    /// 备份用:当前的外观设置,连同"我的图片"。
+    var backupAppearance: BackupDocument.Appearance {
+        BackupDocument.Appearance(choice: choice.stored, opacity: opacity, image: store.load())
+    }
+
+    /// 恢复备份时换上备份里的外观设置;认不出的背景选择按默认处理。
+    func apply(_ backup: BackupDocument.Appearance) throws {
+        if let data = backup.image {
+            try store.save(data)
+            image = UIImage(data: data)
+        } else {
+            try store.remove()
+            image = nil
+        }
+        opacity = min(max(backup.opacity, 0.1), 1)
+        choice = BackgroundChoice(stored: backup.choice)
+    }
+
     /// 删除存下来的图片;正在用它时退回默认。
     func deleteImage() throws {
         try store.remove()

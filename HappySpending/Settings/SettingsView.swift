@@ -19,6 +19,7 @@ struct SettingsView: View {
                     .appRowBackground()
                 }
                 AppearanceSection()
+                BackupSection()
             }
             .appListBackground()
             .navigationTitle("设置")
