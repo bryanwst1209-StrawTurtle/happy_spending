@@ -5,7 +5,7 @@ import HappySpendingCore
 /// 填在下面。留空的那一项不显示"一键添加"按钮,只显示手动步骤。
 enum ShortcutLinks {
     /// 截图 → 提取文字 → 记一笔(屏幕识别)→ 显示通知。
-    static let screenText = ShortcutLink.url(from: nil)
+    static let screenText = ShortcutLink.url(from: "https://www.icloud.com/shortcuts/e57fc0e9d2a54030bb842b76f7b3b091")
     /// 来自支付宝、标题包含"交易提醒"的通知自动化。
     static let alipayNotification = ShortcutLink.url(from: nil)
     /// 来自微信、标题包含"微信支付"的通知自动化。
