@@ -169,6 +169,83 @@ struct BackupTests {
         #expect(BackupError.corrupted.message == "备份文件已损坏")
     }
 
+    // MARK: 替换
+
+    private func snapshot(_ context: ModelContext) throws -> BackupDocument {
+        try Backup.makeDocument(from: context, appearance: appearance, now: now)
+    }
+
+    @Test func restoringIntoAnEmptyStoreReproducesEverything() throws {
+        let source = try makeTestContainer()
+        try fill(source.mainContext)
+        let document = try snapshot(source.mainContext)
+
+        let target = try makeTestContainer()
+        let result = try Backup.replace(with: document, in: target.mainContext)
+
+        #expect(result == RestoreResult(entryCount: 2, orphanedEntryCount: 0))
+        #expect(try snapshot(target.mainContext) == document)
+    }
+
+    @Test func restoringReplacesWhatWasThere() throws {
+        let source = try makeTestContainer()
+        try fill(source.mainContext)
+        let document = try snapshot(source.mainContext)
+
+        let target = try makeTestContainer()
+        let context = target.mainContext
+        let stray = CategoryRules.addTopLevel(
+            name: "要被替换掉", symbolName: "tag.fill", colorHex: "#000000", kind: .expense, sortOrder: 0, in: context
+        )
+        context.insert(LedgerEntry(amountInCents: 1, kind: .expense, date: makeDate(2026, 1, 1), category: stray, calendar: testCalendar))
+        context.insert(MerchantCategory(merchantKey: "旧商户", categoryID: stray.id))
+        try context.save()
+
+        try Backup.replace(with: document, in: context)
+
+        #expect(try snapshot(context) == document)
+    }
+
+    @Test func entriesPointingAtMissingCategoriesBecomeUncategorized() throws {
+        let source = try makeTestContainer()
+        let s = try fill(source.mainContext)
+        var document = try snapshot(source.mainContext)
+        let index = document.entries.firstIndex { $0.id == s.manual.id }!
+        document.entries[index].categoryID = UUID()
+        document.merchantMemory[0].categoryID = UUID()
+
+        let target = try makeTestContainer()
+        let result = try Backup.replace(with: document, in: target.mainContext)
+
+        #expect(result.orphanedEntryCount == 1)
+        let restored = try target.mainContext.fetch(FetchDescriptor<LedgerEntry>()).first { $0.id == s.manual.id }
+        #expect(restored?.category == nil)
+        #expect(try target.mainContext.fetch(FetchDescriptor<MerchantCategory>()).isEmpty)
+    }
+
+    struct InjectedFailure: Error {}
+
+    @Test func aFailureDuringReplaceKeepsTheOriginalData() throws {
+        let original = try makeTestContainer()
+        let context = original.mainContext
+        try fill(context)
+        let before = try snapshot(context)
+
+        let other = try makeTestContainer()
+        let otherContext = other.mainContext
+        let replacement = CategoryRules.addTopLevel(
+            name: "别的", symbolName: "tag.fill", colorHex: "#000000", kind: .expense, sortOrder: 0, in: otherContext
+        )
+        otherContext.insert(LedgerEntry(amountInCents: 9, kind: .expense, date: makeDate(2026, 1, 1), category: replacement, calendar: testCalendar))
+        try otherContext.save()
+        let document = try snapshot(otherContext)
+
+        #expect(throws: InjectedFailure.self) {
+            try Backup.replace(with: document, in: context, beforeSave: { throw InjectedFailure() })
+        }
+        #expect(try snapshot(context) == before)
+    }
+
     // MARK: 预览
 
     @Test func thePreviewSummarizesTheBackup() throws {

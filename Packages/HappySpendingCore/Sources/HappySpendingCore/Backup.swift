@@ -88,6 +88,12 @@ public struct BackupPreview: Equatable, Sendable {
     public let orphanedEntryCount: Int
 }
 
+public struct RestoreResult: Equatable, Sendable {
+    public let entryCount: Int
+    /// 分类已不存在、按未分类恢复的笔数。
+    public let orphanedEntryCount: Int
+}
+
 public enum Backup {
     /// 日期存 ISO 8601(带毫秒),方便人看,也不受时区影响。
     private static let dateStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
@@ -187,6 +193,67 @@ public enum Backup {
         }
         guard document.entries.allSatisfy({ EntryKind(rawValue: $0.kind) != nil }) else {
             throw BackupError.corrupted
+        }
+    }
+
+    // MARK: 替换
+
+    /// 整体替换:删掉现有的账单、分类、商户记忆,换成备份里的,一次保存;出错就全部撤回再抛出。
+    /// 指向不存在分类的账单按未分类恢复,指向不存在分类的商户记忆丢弃。
+    @discardableResult
+    public static func replace(with document: BackupDocument, in context: ModelContext) throws -> RestoreResult {
+        try replace(with: document, in: context, beforeSave: {})
+    }
+
+    static func replace(
+        with document: BackupDocument, in context: ModelContext, beforeSave: () throws -> Void
+    ) throws -> RestoreResult {
+        do {
+            for entry in try context.fetch(FetchDescriptor<LedgerEntry>()) { context.delete(entry) }
+            for memory in try context.fetch(FetchDescriptor<MerchantCategory>()) { context.delete(memory) }
+            let oldCategories = try context.fetch(FetchDescriptor<LedgerCategory>())
+            for category in oldCategories where category.parent != nil { context.delete(category) }
+            for category in oldCategories where category.parent == nil { context.delete(category) }
+
+            // 先建一级分类,再建二级分类(上级已经存在)。
+            var categories: [UUID: LedgerCategory] = [:]
+            let ordered = document.categories.filter { $0.parentID == nil } + document.categories.filter { $0.parentID != nil }
+            for item in ordered {
+                let category = LedgerCategory(
+                    id: item.id, name: item.name, symbolName: item.symbolName, colorHex: item.colorHex,
+                    kind: EntryKind(rawValue: item.kind) ?? .expense, sortOrder: item.sortOrder,
+                    parent: item.parentID.flatMap { categories[$0] }, iconData: item.iconData
+                )
+                category.isArchived = item.isArchived
+                context.insert(category)
+                categories[item.id] = category
+            }
+
+            var orphaned = 0
+            for item in document.entries {
+                let category = item.categoryID.flatMap { categories[$0] }
+                if item.categoryID != nil && category == nil { orphaned += 1 }
+                let entry = LedgerEntry(
+                    id: item.id, amountInCents: item.amountInCents,
+                    kind: EntryKind(rawValue: item.kind) ?? .expense, date: item.date, note: item.note,
+                    category: category, createdAt: item.createdAt, calendar: DayStamp.calendar,
+                    merchant: item.merchant, orderRefHash: item.orderRefHash
+                )
+                // 原样保留来源文字,以后新增的来源取值旧版本也不会丢。
+                entry.autoSourceRaw = item.autoSource
+                context.insert(entry)
+            }
+
+            for item in document.merchantMemory where categories[item.categoryID] != nil {
+                context.insert(MerchantCategory(merchantKey: item.merchantKey, categoryID: item.categoryID, updatedAt: item.updatedAt))
+            }
+
+            try beforeSave()
+            try context.save()
+            return RestoreResult(entryCount: document.entries.count, orphanedEntryCount: orphaned)
+        } catch {
+            context.rollback()
+            throw error
         }
     }
 
