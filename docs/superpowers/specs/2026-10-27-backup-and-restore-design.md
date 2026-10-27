@@ -26,7 +26,7 @@
 
 ## 2. 备份内容与文件格式
 
-一个 JSON 文本文件,文件名 `HappySpending 备份 yyyy-MM-dd.json`(自动备份同一天只有一份,手动导出同一天重名时加时间 `yyyy-MM-dd HHmmss`)。
+一个 JSON 文本文件。自动备份的文件名是 `HappySpending 备份 yyyy-MM-dd.json`(同一天只有一份);手动导出总是带时间 `HappySpending 备份 yyyy-MM-dd HHmmss.json`,既不会重名,也不会被自动备份的轮换删掉。
 
 ```
 {
