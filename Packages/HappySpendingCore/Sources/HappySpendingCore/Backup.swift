@@ -59,6 +59,15 @@ public struct BackupDocument: Codable, Equatable, Sendable {
     public var entries: [Entry]
     public var merchantMemory: [Memory]
     public var appearance: Appearance
+    /// 成就解锁记录;旧版本的备份没有这一项(nil,恢复时按空处理)。
+    public var achievements: [Unlock]?
+    /// 打开过 app 的日子;旧版本的备份没有这一项。
+    public var openDays: [Date]?
+
+    public struct Unlock: Codable, Equatable, Sendable {
+        public var id: String
+        public var unlockedAt: Date
+    }
 }
 
 public enum BackupError: Error, Equatable, LocalizedError {
@@ -130,7 +139,10 @@ public enum Backup {
             merchantMemory: memory.map {
                 BackupDocument.Memory(merchantKey: $0.merchantKey, categoryID: $0.categoryID, updatedAt: $0.updatedAt)
             },
-            appearance: appearance
+            appearance: appearance,
+            achievements: try context.fetch(FetchDescriptor<AchievementUnlock>(sortBy: [SortDescriptor(\.id)]))
+                .map { BackupDocument.Unlock(id: $0.id, unlockedAt: $0.unlockedAt) },
+            openDays: try context.fetch(FetchDescriptor<OpenDay>(sortBy: [SortDescriptor(\.day)])).map(\.day)
         )
     }
 
@@ -211,6 +223,8 @@ public enum Backup {
         do {
             for entry in try context.fetch(FetchDescriptor<LedgerEntry>()) { context.delete(entry) }
             for memory in try context.fetch(FetchDescriptor<MerchantCategory>()) { context.delete(memory) }
+            for unlock in try context.fetch(FetchDescriptor<AchievementUnlock>()) { context.delete(unlock) }
+            for day in try context.fetch(FetchDescriptor<OpenDay>()) { context.delete(day) }
             let oldCategories = try context.fetch(FetchDescriptor<LedgerCategory>())
             for category in oldCategories where category.parent != nil { context.delete(category) }
             for category in oldCategories where category.parent == nil { context.delete(category) }
@@ -246,6 +260,14 @@ public enum Backup {
 
             for item in document.merchantMemory where categories[item.categoryID] != nil {
                 context.insert(MerchantCategory(merchantKey: item.merchantKey, categoryID: item.categoryID, updatedAt: item.updatedAt))
+            }
+
+            var seenBadges = Set<String>()
+            for item in document.achievements ?? [] where seenBadges.insert(item.id).inserted {
+                context.insert(AchievementUnlock(id: item.id, unlockedAt: item.unlockedAt))
+            }
+            for day in Set(document.openDays ?? []) {
+                context.insert(OpenDay(day: day))
             }
 
             try beforeSave()

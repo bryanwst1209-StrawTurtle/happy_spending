@@ -10,6 +10,7 @@
 - 微信支付消息列表记账设计:`docs/superpowers/specs/2026-10-15-wechat-list-screen-record-design.md`
 - 待归类设计:`docs/superpowers/specs/2026-10-16-pending-categorization-design.md`
 - 备份与恢复设计:`docs/superpowers/specs/2026-10-27-backup-and-restore-design.md`
+- 成就徽章设计:`docs/superpowers/specs/2026-10-27-achievements-design.md`
 
 ## 结构
 

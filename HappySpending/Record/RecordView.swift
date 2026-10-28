@@ -4,6 +4,8 @@ import HappySpendingCore
 
 struct RecordView: View {
     @Environment(\.modelContext) private var context
+    @Environment(AchievementCenter.self) private var achievements
+    @Environment(BackupService.self) private var backup
     @Query(sort: \LedgerCategory.sortOrder) private var categories: [LedgerCategory]
     /// 只查最近 300 笔:常用分类和"上次用过的分类"都只看最近的账。
     @Query(LedgerQueries.recent()) private var entries: [LedgerEntry]
@@ -92,6 +94,8 @@ struct RecordView: View {
             return
         }
         form.resetAfterSave()
+        // 解锁了徽章时只显示解锁提示(它自带震动),不再叠一个"已记一笔"。
+        guard !achievements.check(context: context, backup: backup) else { return }
         savedCount += 1
         withAnimation { showToast = true }
         Task {
