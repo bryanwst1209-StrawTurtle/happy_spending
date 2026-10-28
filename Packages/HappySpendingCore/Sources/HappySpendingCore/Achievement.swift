@@ -204,3 +204,69 @@ public enum MonthlyHabits {
         return best
     }
 }
+
+extension Achievements {
+    /// 记下今天打开过 app;今天已经记过就什么也不做。
+    public static func recordOpen(in context: ModelContext, now: Date, calendar: Calendar = .current) throws {
+        let today = DayStamp.stamp(now, in: calendar)
+        var descriptor = FetchDescriptor<OpenDay>(predicate: #Predicate { $0.day == today })
+        descriptor.fetchLimit = 1
+        guard try context.fetchCount(descriptor) == 0 else { return }
+        context.insert(OpenDay(day: today))
+        try context.save()
+    }
+
+    /// 从数据库算出判定所需的事实。月份只看最近 13 个已结束的月份(本月不算)。
+    public static func gather(
+        from context: ModelContext, hasBackedUp: Bool, now: Date, calendar: Calendar = .current
+    ) throws -> AchievementFacts {
+        let stamps = DayStamp.calendar
+        let today = DayStamp.stamp(now, in: calendar)
+        var facts = AchievementFacts()
+        facts.hasBackedUp = hasBackedUp
+        facts.entryCount = try context.fetchCount(FetchDescriptor<LedgerEntry>())
+        facts.autoEntryCount = try context.fetchCount(FetchDescriptor<LedgerEntry>(predicate: #Predicate { $0.autoSourceRaw != nil }))
+        facts.pendingCount = PendingCategorization.pending(try context.fetch(LedgerQueries.uncategorized())).count
+        facts.merchantCount = try context.fetchCount(FetchDescriptor<MerchantCategory>())
+        facts.openStreak = OpenStreak.current(
+            days: Set(try context.fetch(FetchDescriptor<OpenDay>()).map(\.day)), today: today
+        )
+
+        // 最近 13 个已结束的月份:每月支出合计,以及是否"全部有分类且至少 10 笔"。
+        let thisMonth = stamps.dateInterval(of: .month, for: today)!.start
+        let months = (1...13).reversed().compactMap { stamps.date(byAdding: .month, value: -$0, to: thisMonth) }
+        if let start = months.first {
+            let expense = EntryKind.expense.rawValue
+            let entries = try context.fetch(FetchDescriptor<LedgerEntry>(
+                predicate: #Predicate { $0.kindRaw == expense && $0.date >= start && $0.date < thisMonth }
+            ))
+            let byMonth = Dictionary(grouping: entries) { stamps.dateInterval(of: .month, for: $0.date)!.start }
+            facts.bestSpendLessRun = MonthlyHabits.bestDecreasingRun(
+                months.map { byMonth[$0]?.reduce(0) { $0 + $1.amountInCents } ?? 0 }
+            )
+            facts.hasTidyMonth = byMonth.values.contains { $0.count >= 10 && $0.allSatisfy { $0.category != nil } }
+        }
+
+        if let first = try context.fetch(LedgerQueries.earliest()).first?.date,
+           let anniversary = stamps.date(byAdding: .year, value: 1, to: first) {
+            facts.daysUntilAnniversary = max(0, stamps.dateComponents([.day], from: today, to: anniversary).day ?? 0)
+        }
+        return facts
+    }
+
+    /// 检查还没解锁的徽章,满足的写下解锁记录(日期为 `now`),返回这次新解锁的。已解锁的不再判定、不收回。
+    @discardableResult
+    public static func check(
+        in context: ModelContext, hasBackedUp: Bool, now: Date, calendar: Calendar = .current
+    ) throws -> [Achievement] {
+        let done = Set(try context.fetch(FetchDescriptor<AchievementUnlock>()).map(\.id))
+        let remaining = Achievement.allCases.filter { !done.contains($0.rawValue) }
+        guard !remaining.isEmpty else { return [] }
+        let facts = try gather(from: context, hasBackedUp: hasBackedUp, now: now, calendar: calendar)
+        let new = remaining.filter { isMet($0, facts) }
+        guard !new.isEmpty else { return [] }
+        for badge in new { context.insert(AchievementUnlock(id: badge.rawValue, unlockedAt: now)) }
+        try context.save()
+        return new
+    }
+}
