@@ -9,7 +9,7 @@ enum SharedModelContainer {
     static let shared: ModelContainer = {
         do {
             let container = try ModelContainer(
-                for: LedgerCategory.self, LedgerEntry.self, MerchantCategory.self
+                for: LedgerCategory.self, LedgerEntry.self, MerchantCategory.self, AchievementUnlock.self, OpenDay.self
             )
             try DefaultCategories.seedIfNeeded(in: container.mainContext)
             return container

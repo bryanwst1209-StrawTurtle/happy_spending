@@ -8,6 +8,7 @@ struct BackupSection: View {
     @Environment(\.modelContext) private var context
     @Environment(AppearanceModel.self) private var appearance
     @Environment(BackupService.self) private var backup
+    @Environment(AchievementCenter.self) private var achievements
     @Query(LedgerQueries.earliest()) private var anyEntry: [LedgerEntry]
 
     private enum Picking { case backupFile, folder }
@@ -30,8 +31,10 @@ struct BackupSection: View {
             ShareLink(
                 item: BackupFile(
                     name: BackupFiles.manualName(at: .now, calendar: .current),
-                    data: { [context, appearance, backup] in
-                        try backup.exportData(context: context, appearance: appearance)
+                    data: { [context, appearance, backup, achievements] in
+                        let data = try backup.exportData(context: context, appearance: appearance)
+                        achievements.check(context: context, backup: backup)
+                        return data
                     }
                 ),
                 preview: SharePreview("Happy Spending 备份")

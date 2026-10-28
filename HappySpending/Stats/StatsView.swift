@@ -4,6 +4,8 @@ import HappySpendingCore
 
 struct StatsView: View {
     @Environment(AppearanceModel.self) private var appearance
+    @Environment(AchievementCenter.self) private var achievements
+    @Query private var unlocks: [AchievementUnlock]
     @Query(LedgerQueries.earliest()) private var earliest: [LedgerEntry]
     @State private var scope: StatsScope = .month
     @State private var anchor = DayStamp.stamp(.now)
@@ -38,6 +40,28 @@ struct StatsView: View {
                 }
             }
             .navigationTitle("统计")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { achievements.showWall = true } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trophy.fill")
+                            Text("\(Set(unlocks.map(\.id)).count)/\(Achievement.allCases.count)")
+                                .font(.subheadline.monospacedDigit())
+                        }
+                        .overlay(alignment: .topLeading) {
+                            if unlocks.contains(where: { $0.unlockedAt > achievements.seenAt }) {
+                                Circle().fill(.red).frame(width: 8, height: 8).offset(x: -4, y: -4)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationDestination(isPresented: Binding(
+                get: { achievements.showWall },
+                set: { achievements.showWall = $0 }
+            )) {
+                AchievementWallView()
+            }
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: CategoryShare.self) { CategoryDetailView(share: $0) }
             .sheet(isPresented: $picking) {
