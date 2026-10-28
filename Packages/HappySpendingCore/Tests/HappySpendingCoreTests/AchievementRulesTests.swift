@@ -86,4 +86,9 @@ struct AchievementRulesTests {
         #expect(MonthlyHabits.bestDecreasingRun([0, 0]) == 0)
         #expect(MonthlyHabits.bestDecreasingRun([0, 300, 200]) == 1)
     }
+
+    @Test func aMonthWithNothingRecordedIsNotSpendingLess() {
+        #expect(MonthlyHabits.bestDecreasingRun([300, 0]) == 0)
+        #expect(MonthlyHabits.bestDecreasingRun([500, 400, 0, 300]) == 1)
+    }
 }

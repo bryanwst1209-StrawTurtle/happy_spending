@@ -174,6 +174,34 @@ struct AchievementCheckTests {
         #expect(!(try Achievements.gather(from: context, hasBackedUp: false, now: now, calendar: testCalendar).hasTidyMonth))
     }
 
+    // MARK: 性能
+
+    /// 每次记账后都会跑一遍;5 年、每天 2 笔、一半待归类(自动记账攒下没归)时也要很快。
+    @Test func gatheringStaysFastWithYearsOfEntries() throws {
+        let container = try makeTestContainer()
+        let context = container.mainContext
+        let f = food(context)
+        for day in 0..<1825 {
+            let date = now.addingTimeInterval(Double(-day) * 86400)
+            for index in 0..<2 {
+                context.insert(LedgerEntry(
+                    amountInCents: 1000, kind: .expense, date: date, category: index == 0 ? nil : f,
+                    createdAt: date, calendar: testCalendar
+                ))
+            }
+        }
+        try context.save()
+
+        let clock = ContinuousClock()
+        var facts = AchievementFacts()
+        let elapsed = try clock.measure {
+            facts = try Achievements.gather(from: context, hasBackedUp: false, now: now, calendar: testCalendar)
+        }
+
+        #expect(facts.pendingCount == 1825)
+        #expect(elapsed < .milliseconds(100), "\(elapsed)")
+    }
+
     // MARK: 周年
 
     @Test func theAnniversaryCountsDaysFromTheFirstEntry() throws {

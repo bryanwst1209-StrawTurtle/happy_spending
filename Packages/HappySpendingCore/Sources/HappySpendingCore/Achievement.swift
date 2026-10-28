@@ -189,12 +189,12 @@ public enum OpenStreak {
 
 public enum MonthlyHabits {
     /// `totals` 是连续几个已结束月份的支出(从早到晚)。返回"比上月少"最长连续了几个月;
-    /// 上个月没有支出时,这个月不算。
+    /// 上个月或这个月没有支出时,这个月不算(没记账不等于花得少)。
     public static func bestDecreasingRun(_ totals: [Int]) -> Int {
         var best = 0
         var run = 0
         for index in totals.indices.dropFirst() {
-            if totals[index - 1] > 0 && totals[index] < totals[index - 1] {
+            if totals[index] > 0 && totals[index] < totals[index - 1] {
                 run += 1
                 best = max(best, run)
             } else {
@@ -226,7 +226,11 @@ extension Achievements {
         facts.hasBackedUp = hasBackedUp
         facts.entryCount = try context.fetchCount(FetchDescriptor<LedgerEntry>())
         facts.autoEntryCount = try context.fetchCount(FetchDescriptor<LedgerEntry>(predicate: #Predicate { $0.autoSourceRaw != nil }))
-        facts.pendingCount = PendingCategorization.pending(try context.fetch(LedgerQueries.uncategorized())).count
+        let expense = EntryKind.expense.rawValue
+        // 只要笔数:直接让数据库数,不取出来排序(待归类攒多时排序要几百毫秒)。
+        facts.pendingCount = try context.fetchCount(FetchDescriptor<LedgerEntry>(
+            predicate: #Predicate { $0.category == nil && $0.kindRaw == expense }
+        ))
         facts.merchantCount = try context.fetchCount(FetchDescriptor<MerchantCategory>())
         facts.openStreak = OpenStreak.current(
             days: Set(try context.fetch(FetchDescriptor<OpenDay>()).map(\.day)), today: today
@@ -236,7 +240,6 @@ extension Achievements {
         let thisMonth = stamps.dateInterval(of: .month, for: today)!.start
         let months = (1...13).reversed().compactMap { stamps.date(byAdding: .month, value: -$0, to: thisMonth) }
         if let start = months.first {
-            let expense = EntryKind.expense.rawValue
             let entries = try context.fetch(FetchDescriptor<LedgerEntry>(
                 predicate: #Predicate { $0.kindRaw == expense && $0.date >= start && $0.date < thisMonth }
             ))
