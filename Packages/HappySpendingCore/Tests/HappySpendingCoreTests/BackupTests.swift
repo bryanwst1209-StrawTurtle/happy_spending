@@ -259,6 +259,46 @@ struct BackupTests {
                 == "已恢复 12 笔账\n背景设置没能恢复,可以在外观里重新选")
     }
 
+    // MARK: 成就
+
+    @Test func achievementsAndOpenDaysTravelWithTheBackup() throws {
+        let source = try makeTestContainer()
+        let context = source.mainContext
+        try fill(context)
+        context.insert(AchievementUnlock(id: "firstEntry", unlockedAt: makeDate(2026, 10, 20, 8)))
+        context.insert(OpenDay(day: makeDate(2026, 10, 26)))
+        context.insert(OpenDay(day: makeDate(2026, 10, 27)))
+        try context.save()
+        let document = try snapshot(context)
+        #expect(document.achievements?.map(\.id) == ["firstEntry"])
+        #expect(document.openDays == [makeDate(2026, 10, 26), makeDate(2026, 10, 27)])
+
+        let target = try makeTestContainer()
+        try Backup.replace(with: try Backup.decode(try Backup.encode(document)), in: target.mainContext)
+
+        #expect(try snapshot(target.mainContext) == document)
+    }
+
+    @Test func anOldBackupWithoutAchievementsStillRestores() throws {
+        var object = try validObject()
+        object.removeValue(forKey: "achievements")
+        object.removeValue(forKey: "openDays")
+        let document = try Backup.decode(json(object))
+        #expect(document.achievements == nil)
+
+        let target = try makeTestContainer()
+        let context = target.mainContext
+        context.insert(AchievementUnlock(id: "firstEntry", unlockedAt: now))
+        context.insert(OpenDay(day: makeDate(2026, 10, 27)))
+        try context.save()
+
+        try Backup.replace(with: document, in: context)
+
+        #expect(try context.fetch(FetchDescriptor<AchievementUnlock>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<OpenDay>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<LedgerEntry>()).count == 2)
+    }
+
     // MARK: 预览
 
     @Test func thePreviewSummarizesTheBackup() throws {
