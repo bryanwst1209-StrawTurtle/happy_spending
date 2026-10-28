@@ -25,15 +25,18 @@ final class AchievementCenter {
         check(context: context, backup: backup, now: now)
     }
 
-    func check(context: ModelContext, backup: BackupService, now: Date = .now) {
+    /// 检查并在有新解锁时弹提示;返回这次是否有新解锁。
+    @discardableResult
+    func check(context: ModelContext, backup: BackupService, now: Date = .now) -> Bool {
         let backedUp = backup.lastExport != nil || backup.lastAutoBackup != nil
-        guard let new = try? Achievements.check(in: context, hasBackedUp: backedUp, now: now), !new.isEmpty else { return }
+        guard let new = try? Achievements.check(in: context, hasBackedUp: backedUp, now: now), !new.isEmpty else { return false }
         let text = new.count == 1 ? "🏆 解锁:\(new[0].name)" : "🏆 解锁了 \(new.count) 个徽章"
         withAnimation { toast = text }
         Task {
             try? await Task.sleep(for: .seconds(3))
             withAnimation { if toast == text { toast = nil } }
         }
+        return true
     }
 
     func dismissToast() {

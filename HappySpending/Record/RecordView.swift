@@ -94,8 +94,9 @@ struct RecordView: View {
             return
         }
         form.resetAfterSave()
+        // 解锁了徽章时只显示解锁提示(它自带震动),不再叠一个"已记一笔"。
+        guard !achievements.check(context: context, backup: backup) else { return }
         savedCount += 1
-        achievements.check(context: context, backup: backup)
         withAnimation { showToast = true }
         Task {
             try? await Task.sleep(for: .seconds(1.5))
