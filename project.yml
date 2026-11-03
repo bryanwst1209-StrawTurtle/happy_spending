@@ -1,6 +1,8 @@
 name: HappySpending
 options:
   bundleIdPrefix: com.strawturtle
+  # 界面只有简体中文:系统自带的按钮、日期选择器等也跟着用中文。
+  developmentLanguage: zh-Hans
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -22,6 +24,11 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Happy Spending
+        # 上架用的版本号(App Store 里显示)和构建号(每次上传 +1)。
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        # 只用系统自带的 HTTPS 等加密,不需要出口合规申报;上传时就不用每次手动回答。
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: "NO"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
